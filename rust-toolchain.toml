@@ -1,0 +1,4 @@
+# forceatlas2 requires nightly
+[toolchain]
+channel = "nightly"
+
