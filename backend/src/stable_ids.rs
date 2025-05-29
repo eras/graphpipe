@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::marker::PhantomData;
 
 /// A generic ID allocator for stable IDs.
+#[derive(Debug, Clone)]
 pub struct StableIdAllocator<Id>
     where Id: From<u32>
 {

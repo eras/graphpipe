@@ -5,10 +5,10 @@ use actix_web::{
 };
 use petgraph::visit::IntoNodeReferences;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::graph::{Edge, Graph, Node, NodeId};
+use crate::layout::Layout;
 
 struct GraphData {
     graph: Graph,
@@ -27,18 +27,18 @@ struct AddRequest {
     edges: Vec<EdgeRequest>,
 }
 
-#[actix_web::get("/nodes")]
+#[actix_web::get("/graph")]
 async fn list(data: Data<Mutex<GraphData>>) -> impl Responder {
     let data = data.lock().await;
 
-    for (node_idx, node_data) in data.graph.graph.node_references() {
-        println!("  Node Index: {:?}, Data: '{:?}'", node_idx, node_data);
-    }
+    // for (node_idx, node_data) in data.graph.graph.node_references() {
+    //     println!("  Node Index: {:?}, Data: '{:?}'", node_idx, node_data);
+    // }
 
     web::Json(data.graph.graph.clone())
 }
 
-#[actix_web::post("/nodes")]
+#[actix_web::post("/graph")]
 async fn add(data: Data<Mutex<GraphData>>, request: web::Json<AddRequest>) -> impl Responder {
     let mut data = data.lock().await;
     let request = request.into_inner();
@@ -51,6 +51,16 @@ async fn add(data: Data<Mutex<GraphData>>, request: web::Json<AddRequest>) -> im
     web::Json(None::<String>)
 }
 
+#[actix_web::get("/graph/sim")]
+async fn sim(data: Data<Mutex<GraphData>>) -> impl Responder {
+    let data = data.lock().await;
+
+    let mut layout = Layout::new(&data.graph);
+    let nodes_edges = layout.step();
+    
+    web::Json(nodes_edges)
+}
+
 pub async fn main() -> std::io::Result<()> {
     let graph = Graph::new();
     let data = Data::new(Mutex::new(GraphData { graph }));
@@ -61,6 +71,7 @@ pub async fn main() -> std::io::Result<()> {
             .app_data(Data::clone(&data))
             .service(list)
             .service(add)
+            .service(sim)
     })
     .bind(("127.0.0.1", 8080))?
     .run()

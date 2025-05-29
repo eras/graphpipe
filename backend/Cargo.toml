@@ -1,13 +1,14 @@
 [package]
-name = "nodepipe"
+name = "graphpipe"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 actix-web = "4"
 env_logger = "0.11.8"
+fjadra = "0.2.1"
 #forceatlas2 = { path = "../../forceatlas2-rs", features = [] }
-forceatlas2 = { git = "https://framagit.org/ZettaScript/forceatlas2-rs" }
+#forceatlas2 = { git = "https://framagit.org/ZettaScript/forceatlas2-rs" }
 log = "0.4.27"
 multi_index_map = "0.15.0"
 petgraph = { version = "0.8.1", features = ["serde-1"] }

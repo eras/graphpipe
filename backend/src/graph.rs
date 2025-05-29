@@ -46,11 +46,18 @@ pub struct Node {
     pub data: NodeData,
 }
 
+impl Node {
+    pub fn layout_node(&self) -> fjadra::Node {
+	fjadra::Node::default()
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Edge {
     pub id: EdgeId,
 }
 
+#[derive(Debug, Clone)]
 pub struct Graph {
     pub graph: PetGraph<Node, Edge>,
     node_id_gen: StableIdAllocator<NodeId>,
@@ -78,9 +85,14 @@ impl Graph {
         let _node_index = self.graph.add_node(node);
     }
 
-    fn resolve_node_index(&self, node_id: NodeId) -> NodeIndex {
+    pub fn resolve_node_index(&self, node_id: NodeId) -> NodeIndex {
         // TODO: actually resolve some stuff
         From::from(node_id.0)
+    }
+
+    pub fn resolve_node_id(&self, node_index: NodeIndex) -> NodeId {
+        // TODO: actually resolve some stuff
+        NodeId(node_index.index() as u32)
     }
 
     pub fn add_edge(&mut self, a: NodeId, b: NodeId, edge: Edge) {
