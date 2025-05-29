@@ -71,7 +71,12 @@ pub async fn main() -> std::io::Result<()> {
             .app_data(Data::clone(&data))
             .service(list)
             .service(add)
-            .service(sim)
+            .service(layout)
+	    .service(actix_files::Files::new("/", "./backend/assets")
+                     .index_file("index.html") // Specifies the default file for directory requests
+                     // .show_files_listing() // Optional: Enable to show directory listings if no index file
+            )
+
     })
     .bind(("127.0.0.1", 8080))?
     .run()

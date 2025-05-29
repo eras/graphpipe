@@ -1,0 +1,33 @@
+/* style.css */
+body {
+    font-family: sans-serif;
+    margin: 0;
+    overflow: hidden; /* Prevent scrollbars due to SVG positioning */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f0f0f0;
+}
+#graph-container {
+    border: 1px solid #ccc;
+    background-color: #fff;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+}
+.node circle {
+    fill: #69b3a2;
+    stroke: #333;
+    stroke-width: 1.5px;
+    cursor: pointer;
+}
+.node text {
+    font-size: 10px;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none; /* Make text not interfere with circle clicks */
+}
+.link {
+    stroke: #999;
+    stroke-opacity: 0.6;
+    stroke-width: 1.5px;
+}
