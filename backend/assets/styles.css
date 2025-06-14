@@ -13,6 +13,8 @@ body {
     border: 1px solid #ccc;
     background-color: #fff;
     box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    width: 100%;
+    height: 100%;
 }
 .node circle {
     fill: #69b3a2;
@@ -22,7 +24,6 @@ body {
 }
 .node text {
     font-size: 10px;
-    text-anchor: middle;
     dominant-baseline: central;
     pointer-events: none; /* Make text not interfere with circle clicks */
 }
