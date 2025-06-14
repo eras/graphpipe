@@ -27,6 +27,7 @@ interface EdgeData {
 interface GraphData {
     nodes: NodeData[];
     edges: EdgeData[];
+    creation_time: number;
 }
 
 const GRAPH_ENDPOINT: string = "/graph/layout";
@@ -51,6 +52,8 @@ let yScale: ScaleLinear<number, number> = scaleLinear();
 // Elements for nodes and links
 let linkGroup = svg.append("g").attr("class", "links");
 let nodeGroup = svg.append("g").attr("class", "nodes");
+
+let lastCreationTime: number | null = null;
 
 /**
  * Updates the D3 graph visualization based on the provided graph data.
@@ -141,6 +144,12 @@ async function fetchDataAndRender(): Promise<void> {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data: GraphData = await response.json();
+        if (lastCreationTime === null) {
+            lastCreationTime = data.creation_time;
+        } else if (data.creation_time !== lastCreationTime) {
+            window.location.reload();
+            return;
+        }
         updateGraph(data);
     } catch (error: any) {
         // Use 'any' or more specific error types if known

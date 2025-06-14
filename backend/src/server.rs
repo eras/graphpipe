@@ -1,3 +1,4 @@
+use std::time::SystemTime;
 use actix_web::{
     App, HttpServer, Responder,
     middleware::Logger,
@@ -8,10 +9,18 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::graph::{Edge, Graph, Node, NodeId};
-use crate::layout::Layout;
+use crate::layout::{Layout, NodePos};
 
 struct GraphData {
     graph: Graph,
+    creation_time: SystemTime,
+}
+
+#[derive(Serialize, Debug, Clone)]
+struct NodesEdgesInfo {
+    nodes: Vec<NodePos>,
+    edges: Vec<(NodeId, NodeId, Edge)>,
+    creation_time: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -63,13 +72,20 @@ async fn layout(data: Data<Mutex<GraphData>>) -> impl Responder {
 
     let mut layout = Layout::new(&data.graph);
     let nodes_edges = layout.step();
-    
-    web::Json(nodes_edges)
+
+    let response = NodesEdgesInfo {
+	nodes: nodes_edges.nodes,
+	edges: nodes_edges.edges,
+	creation_time: data.creation_time.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs_f64(),
+    };
+
+    web::Json(response)
 }
 
 pub async fn main() -> std::io::Result<()> {
     let graph = Graph::new();
-    let data = Data::new(Mutex::new(GraphData { graph }));
+    let creation_time = SystemTime::now();
+    let data = Data::new(Mutex::new(GraphData { graph, creation_time }));
 
     HttpServer::new(move || {
         App::new()

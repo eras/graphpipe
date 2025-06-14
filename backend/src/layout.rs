@@ -23,8 +23,8 @@ impl From<graph::Node> for Node {
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct NodesEdges {
-    nodes: Vec<NodePos>,
-    edges: Vec<(graph::NodeId, graph::NodeId, graph::Edge)>,
+    pub nodes: Vec<NodePos>,
+    pub edges: Vec<(graph::NodeId, graph::NodeId, graph::Edge)>,
 }
 
 impl Layout {
