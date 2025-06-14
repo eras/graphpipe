@@ -4,10 +4,22 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr as _;
 use bimap::BiMap;
 
-#[derive(thiserror::Error, Debug, Clone)]
+#[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Node not found")]
-    NodeNotFound,
+    #[error("Node not found: {0}")]
+    NodeNotFound(String),
+
+    #[error("Edge not found: {0}")]
+    EdgeNotFound(String),
+
+    #[error("Internal error: node index {0} not found")]
+    NodeIndexNotFound(usize),
+
+    #[error("Unsupported edge node type")]
+    UnsupportedEdgeNode,
+
+    #[error(transparent)]
+    GraphvizParseError(#[from] anyhow::Error),
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -124,22 +136,32 @@ impl Graph {
 	self.node_id_map.insert(node_id, node_index);
     }
 
+    pub fn ensure_node(&mut self, node_id: &NodeId) {
+	if let Some(_node_index) = self.node_id_map.get_by_left(node_id) {
+	    // OK
+	} else {
+	    let node = Node { id: node_id.clone(), data: NodeData {label: node_id.0.clone()} };
+            let node_index = self.graph.add_node(node);
+	    self.node_id_map.insert(node_id.clone(), node_index);
+	}
+    }
+
     pub fn resolve_node_index(&self, node_id: NodeId) -> Result<NodeIndex> {
-	Ok(self.node_id_map.get_by_left(&node_id).ok_or(Error::NodeNotFound)?.clone())
+	Ok(self.node_id_map.get_by_left(&node_id).ok_or(Error::NodeNotFound(node_id.0.clone()))?.clone())
     }
 
     pub fn resolve_node_id(&self, node_index: NodeIndex) -> Result<NodeId> {
-	Ok(self.node_id_map.get_by_right(&node_index).ok_or(Error::NodeNotFound)?.clone())
+	Ok(self.node_id_map.get_by_right(&node_index).ok_or(Error::NodeIndexNotFound(node_index.index()))?.clone())
     }
 
     #[allow(dead_code)]
     pub fn resolve_edge_index(&self, edge_id: EdgeId) -> Result<EdgeIndex> {
-	Ok(self.edge_id_map.get_by_left(&edge_id).ok_or(Error::NodeNotFound)?.clone())
+	Ok(self.edge_id_map.get_by_left(&edge_id).ok_or(Error::EdgeNotFound(edge_id.0.clone()))?.clone())
     }
 
     #[allow(dead_code)]
     pub fn resolve_edge_id(&self, edge_index: EdgeIndex) -> Result<EdgeId> {
-	Ok(self.edge_id_map.get_by_right(&edge_index).ok_or(Error::NodeNotFound)?.clone())
+	Ok(self.edge_id_map.get_by_right(&edge_index).ok_or(Error::NodeIndexNotFound(edge_index.index()))?.clone())
     }
 
     pub fn add_edge(&mut self, a: NodeId, b: NodeId, _edge: Edge) -> Result<()> {
@@ -152,6 +174,44 @@ impl Graph {
             edge,
         );
 	self.edge_id_map.insert(edge_id, edge_index);
+	Ok(())
+    }
+
+    pub fn parse_graphviz(&mut self, data: &str) -> Result<(), Error> {
+	let ast = graphviz_parser::DotGraph::from_str(&data)?;
+	if let graphviz_parser::DotGraph::Directed(graph) = ast {
+	    use graphviz_parser::ast_nodes::Statement;
+	    use graphviz_parser::ast_nodes::{EdgeLHS, EdgeRHS};
+	    for statement in graph.statements {
+		match statement {
+		    Statement::Node(n) => {
+			let node =
+			    Node { id: NodeId(n.id.clone()),
+				   data: NodeData { label: n.id.clone() } };
+			self.add_node(node);
+		    },
+		    Statement::Edge(e) => {
+			let edge = Edge { id: self.new_edge_id() };
+			let lhs_id = match e.lhs {
+			    EdgeLHS::Node(node) => NodeId(node.id),
+			    _ => return Err(Error::UnsupportedEdgeNode)
+			};
+			let rhs_id = match *e.rhs {
+			    EdgeRHS::Node(node) => NodeId(node.id),
+			    _ => return Err(Error::UnsupportedEdgeNode)
+			};
+			self.ensure_node(&lhs_id);
+			self.ensure_node(&rhs_id);
+			self.add_edge(lhs_id, rhs_id, edge).unwrap();
+		    },
+		    _ => {
+			// Ignore others
+		    }
+		}
+	    }
+	    //assert_eq!(node_ids, vec!["a", "b", "c"]);
+	}
+
 	Ok(())
     }
 }

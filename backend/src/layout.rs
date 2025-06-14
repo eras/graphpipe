@@ -3,7 +3,7 @@ use fjadra::{Link, Node, Simulation, SimulationBuilder};
 use petgraph::visit::IntoNodeReferences;
 use petgraph::visit::EdgeRef;
 
-#[derive(thiserror::Error, Debug, Clone)]
+#[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error(transparent)]
     GraphError(#[from] crate::graph::Error),

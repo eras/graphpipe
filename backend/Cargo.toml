@@ -10,6 +10,8 @@ anyhow = "1.0.98"
 bimap = "0.6.3"
 env_logger = "0.11.8"
 fjadra = "0.2.1"
+futures-util = "0.3.31"
+graphviz_parser = { git = "https://github.com/eras/dotfile-parser.git" }
 #forceatlas2 = { path = "../../forceatlas2-rs", features = [] }
 #forceatlas2 = { git = "https://framagit.org/ZettaScript/forceatlas2-rs" }
 log = "0.4.27"

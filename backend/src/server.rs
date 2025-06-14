@@ -4,14 +4,13 @@ use actix_web::{
     middleware::Logger,
     web::{self, Data},
 };
-use petgraph::visit::IntoNodeReferences;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 use crate::graph::{Edge, Graph, Node, NodeId};
 use crate::layout::{Layout, NodePos};
 
-#[derive(thiserror::Error, Debug, Clone)]
+#[derive(thiserror::Error, Debug)]
 enum Error {
     #[error(transparent)]
     GraphError(#[from] crate::graph::Error),
@@ -87,6 +86,19 @@ async fn add(data: Data<Mutex<GraphData>>, request: web::Json<AddRequest>) -> ac
     Ok(web::Json(None::<String>))
 }
 
+#[actix_web::post("/graph/graphviz")]
+async fn post_graphviz(data: Data<Mutex<GraphData>>, body: String) -> actix_web::Result<String> {
+    let mut data = data.lock().await;
+    match data.graph.parse_graphviz(&body) {
+	Ok(()) => {
+	    Ok(format!("OK"))
+	},
+	Err(error) => {
+	    Err(actix_web::error::ErrorBadRequest(format!("Parse error: {:?}", error)))
+	}
+    }
+}
+
 #[actix_web::get("/graph/layout")]
 async fn layout(data: Data<Mutex<GraphData>>) -> actix_web::Result<web::Json<NodesEdgesInfo>, Error> {
     let data = data.lock().await;
@@ -114,6 +126,7 @@ pub async fn main() -> std::io::Result<()> {
             .app_data(Data::clone(&data))
             .service(list)
             .service(add)
+            .service(post_graphviz)
             .service(layout)
 	    .service(actix_files::Files::new("/", "./backend/assets")
                      .index_file("index.html") // Specifies the default file for directory requests
