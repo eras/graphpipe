@@ -21,9 +21,15 @@ struct EdgeRequest {
     edge: Edge,
 }
 
+fn no_nodes() -> Vec<Node> { Vec::new() }
+
+fn no_edge_requests() -> Vec<EdgeRequest> { Vec::new() }
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct AddRequest {
+    #[serde(default = "no_nodes")]
     nodes: Vec<Node>,
+    #[serde(default = "no_edge_requests")]
     edges: Vec<EdgeRequest>,
 }
 
@@ -51,8 +57,8 @@ async fn add(data: Data<Mutex<GraphData>>, request: web::Json<AddRequest>) -> im
     web::Json(None::<String>)
 }
 
-#[actix_web::get("/graph/sim")]
-async fn sim(data: Data<Mutex<GraphData>>) -> impl Responder {
+#[actix_web::get("/graph/layout")]
+async fn layout(data: Data<Mutex<GraphData>>) -> impl Responder {
     let data = data.lock().await;
 
     let mut layout = Layout::new(&data.graph);
