@@ -3,3 +3,4 @@
 **/Cargo.lock
 backend/assets/graph-renderer.js
 node_modules
+.emacs.desktop*
