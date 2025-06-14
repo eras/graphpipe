@@ -60,6 +60,7 @@ pub struct Edge {
 #[derive(Debug, Clone)]
 pub struct Graph {
     pub graph: PetGraph<Node, Edge>,
+    #[allow(dead_code)]
     node_id_gen: StableIdAllocator<NodeId>,
     edge_id_gen: StableIdAllocator<EdgeId>,
 }
@@ -73,6 +74,7 @@ impl Graph {
         }
     }
 
+    #[allow(dead_code)]
     fn new_node_index(&mut self) -> NodeId {
         return self.node_id_gen.acquire_id();
     }
@@ -95,7 +97,7 @@ impl Graph {
         NodeId(node_index.index() as u32)
     }
 
-    pub fn add_edge(&mut self, a: NodeId, b: NodeId, edge: Edge) {
+    pub fn add_edge(&mut self, a: NodeId, b: NodeId, _edge: Edge) {
         let id = self.new_edge_index();
         let edge = Edge { id };
 

@@ -16,7 +16,7 @@ pub struct Layout {
 }
 
 impl From<graph::Node> for Node {
-    fn from(node: graph::Node) -> Self {
+    fn from(_node: graph::Node) -> Self {
         Node::default()
     }
 }
@@ -34,13 +34,13 @@ impl Layout {
             .graph
             .node_references()
             .into_iter()
-            .map(|(node_index, node)| node.clone())
+            .map(|(_node_index, node)| node.clone())
             .collect();
         let sim = SimulationBuilder::default()
             .build(nodes.iter().map(|node| node.layout_node()))
             .add_force(
                 "link",
-                Link::new(edges.clone().into_iter().map(|edge| (0usize, 0usize)))
+                Link::new(edges.clone().into_iter().map(|_edge| (0usize, 0usize)))
                     .strength(1.0)
                     .distance(60.0)
                     .iterations(10),

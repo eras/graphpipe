@@ -42,6 +42,7 @@ impl<Id> StableIdAllocator<Id>
     /// Releases an ID, making it available for reuse.
     ///
     /// This method takes the raw `u32` value of the ID to be released.
+    #[allow(dead_code)]
     pub fn release_id(&mut self, id_value: u32) {
         self.free_ids.push_back(id_value);
     }
