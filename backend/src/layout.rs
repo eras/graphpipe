@@ -3,6 +3,14 @@ use fjadra::{Link, Node, Simulation, SimulationBuilder};
 use petgraph::visit::IntoNodeReferences;
 use petgraph::visit::EdgeRef;
 
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum Error {
+    #[error(transparent)]
+    GraphError(#[from] crate::graph::Error),
+}
+
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct NodePos {
     node: graph::Node,
@@ -28,7 +36,7 @@ pub struct NodesEdges {
 }
 
 impl Layout {
-    pub fn new(g: &graph::Graph) -> Self {
+    pub fn new(g: &graph::Graph) -> Result<Self> {
         let edges = g.graph.edge_references();
         let nodes: Vec<graph::Node> = g
             .graph
@@ -45,21 +53,23 @@ impl Layout {
                     .distance(60.0)
                     .iterations(10),
             );
-        Layout {
-            sim,
-            nodes,
-            edges: g
+	let resolve = |edge: petgraph::graph::EdgeReference<graph::Edge, u32>| -> Result<_> {
+	    Ok((
+                g.resolve_node_id(edge.source())?,
+                g.resolve_node_id(edge.target())?,
+                edge.weight().clone(),
+	    ))
+	};
+	let edges: Result<Vec<_>> = g
                 .graph
                 .edge_references()
-                .map(|edge| {
-                    (
-                        g.resolve_node_id(edge.source()),
-                        g.resolve_node_id(edge.target()),
-                        edge.weight().clone(),
-                    )
-                })
-                .collect(),
-        }
+                .map(resolve)
+                .collect();
+        Ok(Layout {
+            sim,
+            nodes,
+            edges: edges?,
+        })
     }
 
     pub fn step(&mut self) -> NodesEdges {

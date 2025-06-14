@@ -11,6 +11,27 @@ use tokio::sync::Mutex;
 use crate::graph::{Edge, Graph, Node, NodeId};
 use crate::layout::{Layout, NodePos};
 
+#[derive(thiserror::Error, Debug, Clone)]
+enum Error {
+    #[error(transparent)]
+    GraphError(#[from] crate::graph::Error),
+
+    #[error(transparent)]
+    LayoutError(#[from] crate::layout::Error),
+}
+
+impl actix_web::ResponseError for Error {
+    fn error_response(&self) -> actix_web::HttpResponse<actix_web::body::BoxBody> {
+	actix_web::HttpResponse::build(self.status_code())
+            .insert_header(actix_web::http::header::ContentType::html())
+            .body(format!("aiee"))
+    }
+
+    fn status_code(&self) -> actix_web::http::StatusCode {
+	actix_web::http::StatusCode::from_u16(400u16).unwrap()
+    }
+}
+
 struct GraphData {
     graph: Graph,
     creation_time: SystemTime,
@@ -54,23 +75,23 @@ async fn list(data: Data<Mutex<GraphData>>) -> impl Responder {
 }
 
 #[actix_web::post("/graph")]
-async fn add(data: Data<Mutex<GraphData>>, request: web::Json<AddRequest>) -> impl Responder {
+async fn add(data: Data<Mutex<GraphData>>, request: web::Json<AddRequest>) -> actix_web::Result<web::Json<Option<String>>, Error> {
     let mut data = data.lock().await;
     let request = request.into_inner();
     for node in request.nodes {
         data.graph.add_node(node)
     }
     for edge in request.edges {
-        data.graph.add_edge(edge.a, edge.b, edge.edge)
+        data.graph.add_edge(edge.a, edge.b, edge.edge)?
     }
-    web::Json(None::<String>)
+    Ok(web::Json(None::<String>))
 }
 
 #[actix_web::get("/graph/layout")]
-async fn layout(data: Data<Mutex<GraphData>>) -> impl Responder {
+async fn layout(data: Data<Mutex<GraphData>>) -> actix_web::Result<web::Json<NodesEdgesInfo>, Error> {
     let data = data.lock().await;
 
-    let mut layout = Layout::new(&data.graph);
+    let mut layout = Layout::new(&data.graph)?;
     let nodes_edges = layout.step();
 
     let response = NodesEdgesInfo {
@@ -79,7 +100,7 @@ async fn layout(data: Data<Mutex<GraphData>>) -> impl Responder {
 	creation_time: data.creation_time.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs_f64(),
     };
 
-    web::Json(response)
+    Ok(web::Json(response))
 }
 
 pub async fn main() -> std::io::Result<()> {
