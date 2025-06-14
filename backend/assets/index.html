@@ -6,10 +6,20 @@
     <title>D3 Graph Renderer</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <link rel="stylesheet" href="styles.css">
+    <script type="importmap">
+      {
+          "imports": {
+              "d3-selection": "https://esm.sh/d3-selection@3",
+              "d3-scale": "https://esm.sh/d3-scale@4",
+              "d3-array": "https://esm.sh/d3-array@3",
+              "d3": "https://esm.sh/d3@7"
+          }
+      }
+    </script>
 </head>
 <body>
     <div id="graph-container">
-        </div>
-    <script src="graph-renderer.js"></script>
+    </div>
+    <script type="module" src="graph-renderer.js"></script>
 </body>
 </html>

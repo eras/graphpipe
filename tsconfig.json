@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "target": "es2018", // Or "esnext" for the latest features, or "es5" for broader compatibility
+        "module": "esnext", // Or "es6" / "esnext" if you're using ES modules and a module bundler
+        "outDir": "./backend/assets", // Output directory for compiled JavaScript files
+        "rootDir": "./frontend/src", // Root directory of your TypeScript source files (adjust if your .ts file is elsewhere)
+        "strict": true, // Enable all strict type-checking options (recommended)
+        "esModuleInterop": true, // Enables 'import d3 from "d3"' style imports
+        "skipLibCheck": true, // Skip type checking of declaration files
+        "forceConsistentCasingInFileNames": true // Disallow inconsistently-cased file names
+    },
+    "include": [
+        "frontend/src/**/*.ts" // Specify which files to include for compilation (adjust based on your file structure)
+    ],
+    "exclude": [
+        "node_modules" // Exclude node_modules from compilation
+    ]
+}
