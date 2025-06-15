@@ -1,7 +1,6 @@
 use petgraph::Graph as PetGraph;
 use petgraph::graph::{NodeIndex, EdgeIndex};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr as _;
 use bimap::BiMap;
 
 #[derive(thiserror::Error, Debug)]
@@ -15,11 +14,8 @@ pub enum Error {
     #[error("Internal error: node index {0} not found")]
     NodeIndexNotFound(usize),
 
-    #[error("Unsupported edge node type")]
-    UnsupportedEdgeNode,
-
     #[error(transparent)]
-    GraphvizParseError(#[from] anyhow::Error),
+    PestError(#[from] dot_parser::ast::PestError),
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -178,40 +174,23 @@ impl Graph {
     }
 
     pub fn parse_graphviz(&mut self, data: &str) -> Result<(), Error> {
-	let ast = graphviz_parser::DotGraph::from_str(&data)?;
-	if let graphviz_parser::DotGraph::Directed(graph) = ast {
-	    use graphviz_parser::ast_nodes::Statement;
-	    use graphviz_parser::ast_nodes::{EdgeLHS, EdgeRHS};
-	    for statement in graph.statements {
-		match statement {
-		    Statement::Node(n) => {
-			let node =
-			    Node { id: NodeId(n.id.clone()),
-				   data: NodeData { label: n.id.clone() } };
-			self.add_node(node);
-		    },
-		    Statement::Edge(e) => {
-			let edge = Edge { id: self.new_edge_id() };
-			let lhs_id = match e.lhs {
-			    EdgeLHS::Node(node) => NodeId(node.id),
-			    _ => return Err(Error::UnsupportedEdgeNode)
-			};
-			let rhs_id = match *e.rhs {
-			    EdgeRHS::Node(node) => NodeId(node.id),
-			    _ => return Err(Error::UnsupportedEdgeNode)
-			};
-			self.ensure_node(&lhs_id);
-			self.ensure_node(&rhs_id);
-			self.add_edge(lhs_id, rhs_id, edge).unwrap();
-		    },
-		    _ => {
-			// Ignore others
-		    }
-		}
-	    }
-	    //assert_eq!(node_ids, vec!["a", "b", "c"]);
-	}
+	let ast = dot_parser::ast::Graph::try_from(data)?;
+	let canonical = dot_parser::canonical::Graph::from(ast);
 
+	for node in &canonical.nodes.set {
+	    let gnode =
+		Node { id: NodeId(node.0.clone()),
+		       data: NodeData { label: node.0.clone() } };
+	    self.add_node(gnode);
+	}
+	for edge in &canonical.edges.set {
+	    let gedge = Edge { id: self.new_edge_id() };
+	    let id_a = NodeId(edge.from.clone());
+	    let id_b = NodeId(edge.to.clone());
+	    self.ensure_node(&id_a);
+	    self.ensure_node(&id_b);
+	    self.add_edge(id_a, id_b, gedge).unwrap();
+	}
 	Ok(())
     }
 }

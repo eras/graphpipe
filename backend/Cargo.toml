@@ -8,14 +8,15 @@ actix-files = "0.6.6"
 actix-web = "4"
 anyhow = "1.0.98"
 bimap = "0.6.3"
+dot-parser = "0.5.1"
 env_logger = "0.11.8"
 fjadra = "0.2.1"
 futures-util = "0.3.31"
-graphviz_parser = { git = "https://github.com/eras/dotfile-parser.git" }
 #forceatlas2 = { path = "../../forceatlas2-rs", features = [] }
 #forceatlas2 = { git = "https://framagit.org/ZettaScript/forceatlas2-rs" }
 log = "0.4.27"
 multi_index_map = "0.15.0"
+pest = "2.8.0"
 petgraph = { version = "0.8.1", features = ["serde-1"] }
 rand = "0.9.1"
 serde = { version = "1.0.219", features = ["derive"] }
