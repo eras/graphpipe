@@ -14,7 +14,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct NodePos {
     node: graph::Node,
-    pos: (f64, f64),
+    pos: graph::Location,
 }
 
 pub struct Layout {
@@ -85,11 +85,21 @@ impl Layout {
         let nodes =
             std::iter::zip(self.nodes.iter(), positions).map(|(node, pos)| NodePos {
                 node: node.clone(),
-                pos: (pos[0], pos[1]),
+                pos: graph::Location(pos[0], pos[1]),
             });
+
         NodesEdges {
             nodes: nodes.collect(),
             edges: self.edges.clone(),
         }
     }
+
+    pub fn apply(nodes_edges: &NodesEdges, graph: &mut graph::Graph) -> Result<(), Error> {
+	for node_pos in &nodes_edges.nodes {
+	    let node = graph.get_node_mut(&node_pos.node.id)?;
+	    node.set_location(node_pos.pos.clone());
+	}
+	Ok(())
+    }
+
 }

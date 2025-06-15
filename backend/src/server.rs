@@ -117,10 +117,11 @@ async fn post_graphviz(data: Data<Mutex<GraphData>>, body: String) -> actix_web:
 
 #[actix_web::get("/graph/layout")]
 async fn layout(data: Data<Mutex<GraphData>>) -> actix_web::Result<web::Json<NodesEdgesInfo>, Error> {
-    let data = data.lock().await;
+    let mut data = data.lock().await;
 
     let mut layout = Layout::new(&data.graph)?;
     let nodes_edges = layout.step();
+    Layout::apply(&nodes_edges, &mut data.graph)?;
 
     let response = NodesEdgesInfo {
 	nodes: nodes_edges.nodes,

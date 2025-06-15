@@ -94,15 +94,29 @@ pub struct NodeData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Location(pub f64, pub f64);
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Node {
     pub id: NodeId,
-
     pub data: NodeData,
+    location: Option<Location>,
 }
 
 impl Node {
     pub fn layout_node(&self) -> fjadra::Node {
-	fjadra::Node::default()
+	let node = fjadra::Node::default();
+	let node =
+	    if let Some(Location(x, y)) = &self.location {
+		node.position(x.clone(), y.clone())
+	    }
+	    else
+	    { node };
+	node
+    }
+
+    pub fn set_location(&mut self, location: Location) {
+	self.location = Some(location);
     }
 }
 
@@ -169,14 +183,23 @@ impl Graph {
 	if let Some(_node_index) = self.node_id_map.get_by_left(node_id) {
 	    // OK
 	} else {
-	    let node = Node { id: node_id.clone(), data: NodeData {label: node_id.0.clone()} };
+	    let node = Node {
+		id: node_id.clone(),
+		data: NodeData {label: node_id.0.clone()},
+		location: None,
+	    };
             let node_index = self.graph.add_node(node);
 	    self.node_id_map.insert(node_id.clone(), node_index);
 	}
     }
 
-    pub fn resolve_node_index(&self, node_id: NodeId) -> Result<NodeIndex> {
-	Ok(self.node_id_map.get_by_left(&node_id).ok_or(Error::node_not_found(&node_id.0))?.clone())
+    pub fn get_node_mut(&mut self, node_id: &NodeId) -> Result<&mut Node> {
+	let node_index = self.resolve_node_index(node_id)?;
+	Ok(self.graph.node_weight_mut(node_index).ok_or(Error::node_not_found(&node_id.0))?)
+    }
+
+    pub fn resolve_node_index(&self, node_id: &NodeId) -> Result<NodeIndex> {
+	Ok(self.node_id_map.get_by_left(node_id).ok_or(Error::node_not_found(&node_id.0))?.clone())
     }
 
     pub fn resolve_node_id(&self, node_index: NodeIndex) -> Result<NodeId> {
@@ -198,8 +221,8 @@ impl Graph {
         let edge = Edge { id: edge_id.clone() };
 
         let edge_index = self.graph.add_edge(
-            self.resolve_node_index(a)?,
-            self.resolve_node_index(b)?,
+            self.resolve_node_index(&a)?,
+            self.resolve_node_index(&b)?,
             edge,
         );
 	self.edge_id_map.insert(edge_id, edge_index);
@@ -212,8 +235,11 @@ impl Graph {
 
 	for node in &canonical.nodes.set {
 	    let gnode =
-		Node { id: NodeId(node.0.clone()),
-		       data: NodeData { label: node.0.clone() } };
+		Node {
+		    id: NodeId(node.0.clone()),
+		    data: NodeData { label: node.0.clone() },
+		    location: None,
+		};
 	    self.add_node(gnode);
 	}
 	for edge in &canonical.edges.set {
