@@ -50,6 +50,19 @@ impl actix_web::ResponseError for Error {
 struct GraphData {
     graph: Graph,
     creation_time: SystemTime,
+    layout: Option<Layout>,
+}
+
+impl GraphData {
+    fn reset_layout(&mut self) {
+	self.layout = None;
+    }
+    fn update_layout(&mut self) -> Result<&mut Layout, Error> {
+	if self.layout.is_none() {
+	    self.layout = Some(Layout::new(&self.graph)?);
+	}
+	Ok(self.layout.as_mut().unwrap())
+    }
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -92,6 +105,7 @@ async fn list(data: Data<Mutex<GraphData>>) -> impl Responder {
 #[actix_web::post("/graph")]
 async fn add(data: Data<Mutex<GraphData>>, request: web::Json<AddRequest>) -> actix_web::Result<web::Json<Option<String>>, Error> {
     let mut data = data.lock().await;
+    data.reset_layout();
     let request = request.into_inner();
     for node in request.nodes {
         data.graph.add_node(node)
@@ -105,6 +119,7 @@ async fn add(data: Data<Mutex<GraphData>>, request: web::Json<AddRequest>) -> ac
 #[actix_web::post("/graph/graphviz")]
 async fn post_graphviz(data: Data<Mutex<GraphData>>, body: String) -> actix_web::Result<String> {
     let mut data = data.lock().await;
+    data.reset_layout();
     match data.graph.parse_graphviz(&body) {
 	Ok(()) => {
 	    Ok(format!(""))
@@ -119,7 +134,7 @@ async fn post_graphviz(data: Data<Mutex<GraphData>>, body: String) -> actix_web:
 async fn layout(data: Data<Mutex<GraphData>>) -> actix_web::Result<web::Json<NodesEdgesInfo>, Error> {
     let mut data = data.lock().await;
 
-    let mut layout = Layout::new(&data.graph)?;
+    let layout = data.update_layout()?;
     let nodes_edges = layout.step();
     Layout::apply(&nodes_edges, &mut data.graph)?;
 
@@ -135,7 +150,7 @@ async fn layout(data: Data<Mutex<GraphData>>) -> actix_web::Result<web::Json<Nod
 pub async fn main() -> std::io::Result<()> {
     let graph = Graph::new();
     let creation_time = SystemTime::now();
-    let data = Data::new(Mutex::new(GraphData { graph, creation_time }));
+    let data = Data::new(Mutex::new(GraphData { graph, creation_time, layout: None }));
 
     HttpServer::new(move || {
         App::new()

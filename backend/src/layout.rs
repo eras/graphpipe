@@ -77,10 +77,9 @@ impl Layout {
     }
 
     pub fn step(&mut self) -> NodesEdges {
-	let positions = self.sim
-            .iter()
-            .last()
-            .expect("simulation should always return");
+	self.sim.tick(1usize);
+
+	let positions = self.sim.positions();
 
         let nodes =
             std::iter::zip(self.nodes.iter(), positions).map(|(node, pos)| NodePos {
