@@ -2,20 +2,54 @@ use petgraph::Graph as PetGraph;
 use petgraph::graph::{NodeIndex, EdgeIndex};
 use serde::{Deserialize, Serialize};
 use bimap::BiMap;
+use std::backtrace::Backtrace;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Node not found: {0}")]
-    NodeNotFound(String),
+    #[error("Node not found: {id}")]
+    NodeNotFound{
+	id: String,
+	backtrace: Backtrace,
+    },
 
-    #[error("Edge not found: {0}")]
-    EdgeNotFound(String),
+    #[error("Edge not found: {id}")]
+    EdgeNotFound{
+	id: String,
+	backtrace: Backtrace,
+    },
 
-    #[error("Internal error: node index {0} not found")]
-    NodeIndexNotFound(usize),
+    #[error("Internal error: node index {index} not found")]
+    NodeIndexNotFound{
+	index: usize,
+	backtrace: Backtrace,
+    },
+
+    #[error("Internal error: edge index {index} not found")]
+    EdgeIndexNotFound{
+	index: usize,
+	backtrace: Backtrace,
+    },
 
     #[error(transparent)]
     PestError(#[from] dot_parser::ast::PestError),
+}
+
+impl Error {
+    fn node_not_found(id: &str) -> Error {
+	Error::NodeNotFound { id: String::from(id), backtrace: Backtrace::capture() }
+    }
+
+    fn edge_not_found(id: &str) -> Error {
+	Error::EdgeNotFound { id: String::from(id), backtrace: Backtrace::capture() }
+    }
+
+    fn node_index_not_found(index: usize) -> Error {
+	Error::NodeIndexNotFound { index, backtrace: Backtrace::capture() }
+    }
+
+    fn edge_index_not_found(index: usize) -> Error {
+	Error::EdgeIndexNotFound { index, backtrace: Backtrace::capture() }
+    }
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -143,21 +177,21 @@ impl Graph {
     }
 
     pub fn resolve_node_index(&self, node_id: NodeId) -> Result<NodeIndex> {
-	Ok(self.node_id_map.get_by_left(&node_id).ok_or(Error::NodeNotFound(node_id.0.clone()))?.clone())
+	Ok(self.node_id_map.get_by_left(&node_id).ok_or(Error::node_not_found(&node_id.0))?.clone())
     }
 
     pub fn resolve_node_id(&self, node_index: NodeIndex) -> Result<NodeId> {
-	Ok(self.node_id_map.get_by_right(&node_index).ok_or(Error::NodeIndexNotFound(node_index.index()))?.clone())
+	Ok(self.node_id_map.get_by_right(&node_index).ok_or(Error::node_index_not_found(node_index.index()))?.clone())
     }
 
     #[allow(dead_code)]
     pub fn resolve_edge_index(&self, edge_id: EdgeId) -> Result<EdgeIndex> {
-	Ok(self.edge_id_map.get_by_left(&edge_id).ok_or(Error::EdgeNotFound(edge_id.0.clone()))?.clone())
+	Ok(self.edge_id_map.get_by_left(&edge_id).ok_or(Error::edge_not_found(&edge_id.0))?.clone())
     }
 
     #[allow(dead_code)]
     pub fn resolve_edge_id(&self, edge_index: EdgeIndex) -> Result<EdgeId> {
-	Ok(self.edge_id_map.get_by_right(&edge_index).ok_or(Error::NodeIndexNotFound(edge_index.index()))?.clone())
+	Ok(self.edge_id_map.get_by_right(&edge_index).ok_or(Error::edge_index_not_found(edge_index.index()))?.clone())
     }
 
     pub fn add_edge(&mut self, a: NodeId, b: NodeId, _edge: Edge) -> Result<()> {

@@ -6,24 +6,40 @@ use actix_web::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
+use std::backtrace::Backtrace;
 
 use crate::graph::{Edge, Graph, Node, NodeId};
 use crate::layout::{Layout, NodePos};
 
 #[derive(thiserror::Error, Debug)]
 enum Error {
-    #[error(transparent)]
-    GraphError(#[from] crate::graph::Error),
+    #[error("Graph error: {source}")]
+    GraphError {
+	#[from] source: crate::graph::Error,
+	backtrace: Backtrace,
+    },
 
-    #[error(transparent)]
-    LayoutError(#[from] crate::layout::Error),
+    #[error("Layout error: {source}")]
+    LayoutError{
+	#[from] source: crate::layout::Error,
+	backtrace: Backtrace,
+    },
+}
+
+impl Error {
+    pub fn backtrace(&self) -> Option<&Backtrace> {
+        match self {
+            Error::GraphError { backtrace, .. } => Some(backtrace),
+            Error::LayoutError { backtrace, .. } => Some(backtrace),
+        }
+    }
 }
 
 impl actix_web::ResponseError for Error {
     fn error_response(&self) -> actix_web::HttpResponse<actix_web::body::BoxBody> {
 	actix_web::HttpResponse::build(self.status_code())
             .insert_header(actix_web::http::header::ContentType::html())
-            .body(format!("{}", &self))
+            .body(format!("{}. Backtrace: {:?}", &self, self.backtrace()))
     }
 
     fn status_code(&self) -> actix_web::http::StatusCode {
