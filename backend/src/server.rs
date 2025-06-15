@@ -107,7 +107,7 @@ async fn post_graphviz(data: Data<Mutex<GraphData>>, body: String) -> actix_web:
     let mut data = data.lock().await;
     match data.graph.parse_graphviz(&body) {
 	Ok(()) => {
-	    Ok(format!("OK"))
+	    Ok(format!(""))
 	},
 	Err(error) => {
 	    Err(actix_web::error::ErrorBadRequest(format!("Parse error: {:?}", error)))
