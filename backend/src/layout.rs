@@ -53,8 +53,8 @@ impl Layout {
 		    edge.target().index(),
 		)))
                     .strength(1.0)
-                    .distance(10.0)
-                    .iterations(10),
+                    .distance(30.0)
+                    .iterations(1),
             )
 	    .add_force("charge", ManyBody::new());
 	let resolve = |edge: petgraph::graph::EdgeReference<graph::Edge, u32>| -> Result<_> {
