@@ -119,7 +119,10 @@ function updateGraph(graphData: GraphData): void {
 
     newNodeGroup.append("circle").attr("r", 5); // Default radius
 
-    newNodeGroup.append("text").text((d: NodeData) => d.node.data.label);
+    newNodeGroup
+        .append("text")
+        .text((d: NodeData) => d.node.data.label)
+        .attr("transform", (d: NodeData) => `translate(7, 0)`);
 
     // Update + Enter (position nodes)
     const allNodes = newNodeGroup
