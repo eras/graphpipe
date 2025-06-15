@@ -45,13 +45,26 @@ const svg = select("#graph-container")
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
+svg.append("defs")
+    .append("marker")
+    .attr("id", "arrowhead")
+    .attr("viewBox", "0 -5 10 10") // Adjust viewBox based on your arrow size
+    .attr("refX", 8) // This positions the tip of the arrow at the end of the line
+    .attr("refY", 0)
+    .attr("orient", "auto")
+    .attr("markerWidth", 10) // Size of the marker
+    .attr("markerHeight", 10)
+    .append("path")
+    .attr("d", "M0,-5L10,0L0,5") // Path for a simple arrowhead
+    .attr("fill", "#999"); // Color of the arrowhead, match your link color
+
 // Scales for mapping data positions to SVG coordinates
 let xScale: ScaleLinear<number, number> = scaleLinear();
 let yScale: ScaleLinear<number, number> = scaleLinear();
 
 // Elements for nodes and links
-let linkGroup = svg.append("g").attr("class", "links");
 let nodeGroup = svg.append("g").attr("class", "nodes");
+let linkGroup = svg.append("g").attr("class", "links");
 
 let lastCreationTime: number | null = null;
 
@@ -104,7 +117,8 @@ function updateGraph(graphData: GraphData): void {
         .attr("x1", (d: EdgeData) => xScale(nodesById.get(d[0])!.pos[0])) // d[0] is source_id
         .attr("y1", (d: EdgeData) => yScale(nodesById.get(d[0])!.pos[1]))
         .attr("x2", (d: EdgeData) => xScale(nodesById.get(d[1])!.pos[0])) // d[1] is target_id
-        .attr("y2", (d: EdgeData) => yScale(nodesById.get(d[1])!.pos[1]));
+        .attr("y2", (d: EdgeData) => yScale(nodesById.get(d[1])!.pos[1]))
+        .attr("marker-end", "url(#arrowhead)");
 
     // --- Update Nodes ---
     const nodes = nodeGroup
