@@ -155,9 +155,13 @@ impl Graph {
     }
 
     pub fn add_node(&mut self, node: Node) {
-	// TODO: check existing node
 	let node_id = node.id.clone();
-        let node_index = self.graph.add_node(node);
+	let node_index =
+	    if let Some(node_index) = self.node_id_map.get_by_left(&node_id) {
+		node_index.clone()
+	    } else {
+		self.graph.add_node(node)
+	    };
 	self.node_id_map.insert(node_id, node_index);
     }
 
