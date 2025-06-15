@@ -3,6 +3,7 @@ use petgraph::graph::{NodeIndex, EdgeIndex};
 use serde::{Deserialize, Serialize};
 use bimap::BiMap;
 use std::backtrace::Backtrace;
+use std::collections::HashMap;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -240,10 +241,11 @@ impl Graph {
 	let canonical = dot_parser::canonical::Graph::from(ast);
 
 	for node in &canonical.nodes.set {
+	    let attrs: HashMap<_, _> = node.1.attr.clone().into_iter().collect();
 	    let gnode =
 		Node {
 		    id: NodeId(node.0.clone()),
-		    data: NodeData { label: node.0.clone() },
+		    data: NodeData { label: attrs.get("label").unwrap_or(&node.0.as_str()).to_string() },
 		    pos: None,
 		};
 	    self.add_node(gnode);
