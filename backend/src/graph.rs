@@ -100,7 +100,7 @@ pub struct Pos(pub f64, pub f64);
 pub struct Node {
     pub id: NodeId,
     pub data: NodeData,
-    pos: Option<Pos>,
+    pub pos: Option<Pos>,
 }
 
 impl Node {
@@ -195,6 +195,13 @@ impl Graph {
     pub fn get_node_mut(&mut self, node_id: &NodeId) -> Result<&mut Node> {
 	let node_index = self.resolve_node_index(node_id)?;
 	Ok(self.graph.node_weight_mut(node_index).ok_or(Error::node_not_found(&node_id.0))?)
+    }
+
+    pub fn node_neighbors(&self, node_id: &NodeId) -> Result<Vec<&Node>> {
+	let node_index = self.resolve_node_index(node_id)?;
+	let neighbors : Result<Vec<_>> =
+	    self.graph.neighbors_undirected(node_index).map(|node_index| self.graph.node_weight(node_index).ok_or(Error::node_index_not_found(node_index.index()))).collect();
+	Ok(neighbors?)
     }
 
     pub fn resolve_node_index(&self, node_id: &NodeId) -> Result<NodeIndex> {

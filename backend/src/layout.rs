@@ -38,12 +38,13 @@ pub struct NodesEdges {
 impl Layout {
     pub fn new(g: &graph::Graph) -> Result<Self> {
         let edges = g.graph.edge_references();
-        let nodes: Vec<graph::Node> = g
+        let nodes: Result<Vec<graph::Node>> = g
             .graph
             .node_references()
             .into_iter()
-            .map(|(_node_index, node)| node.clone())
+            .map(|(_node_index, node)| Layout::update_node_pos(node.clone(), g))
             .collect();
+	let nodes = nodes?;
         let sim = SimulationBuilder::default()
             .build(nodes.iter().map(|node| node.layout_node()))
             .add_force(
@@ -74,6 +75,33 @@ impl Layout {
             nodes,
             edges: edges?,
         })
+    }
+
+    fn update_node_pos(mut node: graph::Node, graph: &graph::Graph) -> Result<graph::Node> {
+	node.pos =
+	    match node.pos {
+		None => {
+		    let mut average_pos = (0.0f64, 0.0f64);
+		    let mut average_count = 0;
+		    for neighbour in graph.node_neighbors(&node.id)? {
+			if let Some(pos) = &neighbour.pos {
+			    average_count += 1;
+			    average_pos.0 += pos.0;
+			    average_pos.1 += pos.1;
+			}
+		    }
+		    if average_count > 0 {
+			Some(graph::Pos(average_pos.0 / average_count as f64,
+					average_pos.1 / average_count as f64))
+		    } else {
+			None
+		    }
+		},
+		some_pos => {
+		    some_pos
+		}
+	    };
+	Ok(node)
     }
 
     pub fn step(&mut self) -> NodesEdges {
