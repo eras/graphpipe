@@ -1,5 +1,5 @@
 use crate::graph;
-use fjadra::{Link, Node, Simulation, SimulationBuilder};
+use fjadra::{Link, Node, Simulation, SimulationBuilder, ManyBody};
 use petgraph::visit::IntoNodeReferences;
 use petgraph::visit::EdgeRef;
 
@@ -48,11 +48,15 @@ impl Layout {
             .build(nodes.iter().map(|node| node.layout_node()))
             .add_force(
                 "link",
-                Link::new(edges.clone().into_iter().map(|_edge| (0usize, 0usize)))
+                Link::new(edges.clone().into_iter().map(|edge| (
+		    edge.source().index(),
+		    edge.target().index(),
+		)))
                     .strength(1.0)
-                    .distance(60.0)
+                    .distance(10.0)
                     .iterations(10),
-            );
+            )
+	    .add_force("charge", ManyBody::new());
 	let resolve = |edge: petgraph::graph::EdgeReference<graph::Edge, u32>| -> Result<_> {
 	    Ok((
                 g.resolve_node_id(edge.source())?,
@@ -73,11 +77,15 @@ impl Layout {
     }
 
     pub fn step(&mut self) -> NodesEdges {
-        self.sim.step();
+	let positions = self.sim
+            .iter()
+            .last()
+            .expect("simulation should always return");
+
         let nodes =
-            std::iter::zip(self.nodes.iter(), self.sim.positions()).map(|(node, pos)| NodePos {
+            std::iter::zip(self.nodes.iter(), positions).map(|(node, pos)| NodePos {
                 node: node.clone(),
-                pos: (pos[0] * 10.0, pos[1] * 10.0),
+                pos: (pos[0], pos[1]),
             });
         NodesEdges {
             nodes: nodes.collect(),
