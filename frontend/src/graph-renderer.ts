@@ -31,7 +31,7 @@ interface GraphData {
 }
 
 const GRAPH_ENDPOINT: string = "/graph/layout";
-const POLL_INTERVAL_MS: number = 1000; // Poll every 1 second
+const POLL_INTERVAL_MS: number = 100;
 
 const margin = { top: 20, right: 20, bottom: 20, left: 20 };
 const width: number = 800 - margin.left - margin.right; // SVG width
