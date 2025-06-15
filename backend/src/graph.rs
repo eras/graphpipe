@@ -94,20 +94,20 @@ pub struct NodeData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Location(pub f64, pub f64);
+pub struct Pos(pub f64, pub f64);
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Node {
     pub id: NodeId,
     pub data: NodeData,
-    location: Option<Location>,
+    pos: Option<Pos>,
 }
 
 impl Node {
     pub fn layout_node(&self) -> fjadra::Node {
 	let node = fjadra::Node::default();
 	let node =
-	    if let Some(Location(x, y)) = &self.location {
+	    if let Some(Pos(x, y)) = &self.pos {
 		node.position(x.clone(), y.clone())
 	    }
 	    else
@@ -115,8 +115,8 @@ impl Node {
 	node
     }
 
-    pub fn set_location(&mut self, location: Location) {
-	self.location = Some(location);
+    pub fn set_pos(&mut self, pos: Pos) {
+	self.pos = Some(pos);
     }
 }
 
@@ -186,10 +186,9 @@ impl Graph {
 	    let node = Node {
 		id: node_id.clone(),
 		data: NodeData {label: node_id.0.clone()},
-		location: None,
+		pos: None,
 	    };
-            let node_index = self.graph.add_node(node);
-	    self.node_id_map.insert(node_id.clone(), node_index);
+	    self.add_node(node);
 	}
     }
 
@@ -238,7 +237,7 @@ impl Graph {
 		Node {
 		    id: NodeId(node.0.clone()),
 		    data: NodeData { label: node.0.clone() },
-		    location: None,
+		    pos: None,
 		};
 	    self.add_node(gnode);
 	}
