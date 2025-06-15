@@ -1,6 +1,7 @@
 use petgraph::Graph as PetGraph;
 use petgraph::graph::{NodeIndex, EdgeIndex};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::str::FromStr as _;
 use bimap::BiMap;
 use std::backtrace::Backtrace;
@@ -247,9 +248,10 @@ impl Graph {
 	    for statement in graph.statements {
 		match statement {
 		    Statement::Node(n) => {
+			let attrs = attr_map(&n.attribute_list);
 			let node =
 			    Node { id: NodeId(n.id.clone()),
-				   data: NodeData { label: n.id.clone() },
+				   data: NodeData { label: attrs.get("label").unwrap_or(&&n.id).to_string() },
 				   pos: None };
 			self.add_node(node);
 		    },
@@ -277,4 +279,16 @@ impl Graph {
 
 	Ok(())
     }
+}
+
+fn attr_map(attr_list: &Option<graphviz_parser::ast_nodes::AttributeList>) -> HashMap<&str, &String> {
+    let mut attrs = HashMap::new();
+    if let Some(attribute_list) = attr_list {
+	for attr_group in attribute_list {
+	    for assignment in attr_group {
+		attrs.insert(assignment.lhs.as_str(), &assignment.rhs);
+	    }
+	}
+    }
+    attrs
 }
