@@ -53,7 +53,7 @@ impl Layout {
 		    edge.source().index(),
 		    edge.target().index(),
 		)))
-                    .strength(1.0)
+                    .strength(0.1)
                     .distance(30.0)
                     .iterations(1),
             )
