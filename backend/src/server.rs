@@ -23,7 +23,7 @@ impl actix_web::ResponseError for Error {
     fn error_response(&self) -> actix_web::HttpResponse<actix_web::body::BoxBody> {
 	actix_web::HttpResponse::build(self.status_code())
             .insert_header(actix_web::http::header::ContentType::html())
-            .body(format!("aiee"))
+            .body(format!("{}", &self))
     }
 
     fn status_code(&self) -> actix_web::http::StatusCode {
