@@ -54,7 +54,6 @@ impl Error {
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-use crate::stable_ids::StableIdAllocator;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, PartialOrd, Hash)]
 pub struct NodeId(String);
 
@@ -118,8 +117,6 @@ pub struct Graph {
     node_id_map: BiMap<NodeId, NodeIndex>,
     edge_id_map: BiMap<EdgeId, EdgeIndex>,
     id_counter: usize,
-    node_index_gen: StableIdAllocator<NodeIndex>,
-    edge_index_gen: StableIdAllocator<EdgeIndex>,
 }
 
 impl Graph {
@@ -129,8 +126,6 @@ impl Graph {
 	    node_id_map: BiMap::new(),
 	    edge_id_map: BiMap::new(),
 	    id_counter: 0usize,
-	    node_index_gen: StableIdAllocator::new(),
-	    edge_index_gen: StableIdAllocator::new(),
         }
     }
 

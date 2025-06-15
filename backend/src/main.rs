@@ -3,7 +3,6 @@
 mod graph;
 mod layout;
 mod server;
-mod stable_ids;
 
 use env_logger::Env;
 
