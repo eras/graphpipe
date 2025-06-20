@@ -133,8 +133,7 @@ async fn run_server(
     listen_addr: SocketAddr,
     data: web::Data<GraphDataType>,
 ) -> std::io::Result<()> {
-    println!("Starting server on http://{}", listen_addr);
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
             .app_data(data.clone())
@@ -143,16 +142,18 @@ async fn run_server(
             .service(post_graphviz)
             .service(actix_files::Files::new("/", "./backend/assets").index_file("index.html"))
     })
-    .bind(listen_addr)?
-    .run()
-    .await
+    .bind(listen_addr)?;
+    for addr in server.addrs() {
+        println!("Started server on http://{}", addr);
+    }
+    server.run().await
 }
 
 // Function to handle the listening address logic
 fn get_listen_address(
     listen_arg: Option<String>,
 ) -> Result<SocketAddr, Box<dyn std::error::Error>> {
-    let default_port = 8080;
+    let default_port = 0;
     let default_host = "127.0.0.1";
 
     match listen_arg {
