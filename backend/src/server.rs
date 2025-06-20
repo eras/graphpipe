@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::bg_layout::BgLayout;
-use crate::graph::{Edge, Graph, GraphResponse, Node, NodeId};
+use crate::graph::{Edge, EdgeId, Graph, GraphResponse, Node, NodeId};
 use crate::graph_data::{GraphData, GraphDataType};
 
 #[derive(thiserror::Error, Debug)]
@@ -91,7 +91,7 @@ impl actix_web::ResponseError for Error {
 struct EdgeRequest {
     a: NodeId,
     b: NodeId,
-    edge: Edge,
+    id: Option<EdgeId>,
 }
 
 fn no_nodes() -> Vec<Node> {
@@ -131,7 +131,7 @@ async fn add(
     for edge in request.edges {
         data.graph.ensure_node(&edge.a);
         data.graph.ensure_node(&edge.b);
-        data.graph.add_edge(edge.a, edge.b, edge.edge)?
+        data.graph.add_edge(edge.a, edge.b, edge.id)?
     }
     Ok(web::Json(None::<String>))
 }

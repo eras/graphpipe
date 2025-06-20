@@ -293,8 +293,8 @@ impl Graph {
             .clone())
     }
 
-    pub fn add_edge(&mut self, a: NodeId, b: NodeId, _edge: Edge) -> Result<()> {
-        let edge_id = self.new_edge_id();
+    pub fn add_edge(&mut self, a: NodeId, b: NodeId, edge_id: Option<EdgeId>) -> Result<()> {
+        let edge_id = edge_id.unwrap_or_else(|| self.new_edge_id());
         let edge = Edge {
             id: edge_id.clone(),
         };
@@ -327,9 +327,7 @@ impl Graph {
                         self.add_node(node);
                     }
                     Statement::Edge(e) => {
-                        let edge = Edge {
-                            id: self.new_edge_id(),
-                        };
+                        let edge_id = self.new_edge_id();
                         let lhs_id = match e.lhs {
                             EdgeLHS::Node(node) => NodeId(node.id),
                             _ => return Err(Error::UnsupportedEdgeNode),
@@ -340,7 +338,7 @@ impl Graph {
                         };
                         self.ensure_node(&lhs_id);
                         self.ensure_node(&rhs_id);
-                        self.add_edge(lhs_id, rhs_id, edge).unwrap();
+                        self.add_edge(lhs_id, rhs_id, Some (edge_id)).unwrap();
                     }
                     _ => {
                         // Ignore others
