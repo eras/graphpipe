@@ -36,7 +36,30 @@ pub enum Error {
         source: crate::layout::Error,
         backtrace: Backtrace,
     },
+
+    #[error("Layout error: {source}")]
+    LocalIpAddressError {
+        #[from]
+        source: local_ip_address::Error,
+    },
+
+    #[error("IO error: {source}")]
+    IOError {
+        #[from]
+        source: std::io::Error,
+    },
+
+    #[error("Address parse error: {source}")]
+    AddrParseError {
+        #[from]
+        source: std::net::AddrParseError,
+    },
+
+    #[error("Address parse error: {message}")]
+    InvalidAddressFormatError { message: String },
 }
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 impl Error {
     pub fn backtrace(&self) -> Option<&Backtrace> {
@@ -44,6 +67,10 @@ impl Error {
             Error::GraphDataError { backtrace, .. } => Some(backtrace),
             Error::GraphError { backtrace, .. } => Some(backtrace),
             Error::LayoutError { backtrace, .. } => Some(backtrace),
+            Error::LocalIpAddressError { .. } => None,
+            Error::IOError { .. } => None,
+            Error::AddrParseError { .. } => None,
+            Error::InvalidAddressFormatError { .. } => None,
         }
     }
 }
@@ -129,10 +156,7 @@ struct Args {
 }
 
 // Function to configure and run the Actix-web server
-async fn run_server(
-    listen_addr: SocketAddr,
-    data: web::Data<GraphDataType>,
-) -> std::io::Result<()> {
+async fn run_server(listen_addr: SocketAddr, data: web::Data<GraphDataType>) -> Result<()> {
     let server = HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
@@ -144,15 +168,24 @@ async fn run_server(
     })
     .bind(listen_addr)?;
     for addr in server.addrs() {
-        println!("Started server on http://{}", addr);
+        if addr.ip().is_unspecified() {
+            // Now, get all local network interfaces and print their IP addresses
+            let network_interfaces = local_ip_address::list_afinet_netifas()?;
+
+            for (name, ip) in network_interfaces.iter() {
+                if !ip.is_unspecified() {
+                    println!("Started server on http://{}:{} ({})", ip, addr.port(), name);
+                }
+            }
+        } else {
+            println!("Started server on http://{}", addr);
+        }
     }
-    server.run().await
+    Ok(server.run().await?)
 }
 
 // Function to handle the listening address logic
-fn get_listen_address(
-    listen_arg: Option<String>,
-) -> Result<SocketAddr, Box<dyn std::error::Error>> {
+fn get_listen_address(listen_arg: Option<String>) -> Result<SocketAddr> {
     let default_port = 0;
     let default_host = "127.0.0.1";
 
@@ -166,7 +199,9 @@ fn get_listen_address(
                 let addr = format!("{}:{}", default_host, port);
                 Ok(addr.parse::<SocketAddr>()?)
             } else {
-                Err(format!("Invalid listen address format: {}", addr_str).into())
+                Err(Error::InvalidAddressFormatError {
+                    message: format!("Invalid listen address format: {}", addr_str),
+                })
             }
         }
         None => {
@@ -177,7 +212,7 @@ fn get_listen_address(
     }
 }
 
-pub async fn main() -> std::io::Result<()> {
+pub async fn main() -> Result<()> {
     let args = Args::parse();
 
     let graph = Graph::new();
