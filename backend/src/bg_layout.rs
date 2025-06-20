@@ -1,10 +1,9 @@
 use std::backtrace::Backtrace;
-use std::time::{Duration, SystemTime};
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::time::Duration;
 
-use crate::graph::{Node, Edge, NodeId, PetGraphType};
 use crate::graph_data::GraphDataType;
 use crate::layout::Layout;
 

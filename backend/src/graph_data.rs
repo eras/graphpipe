@@ -1,5 +1,4 @@
 use std::backtrace::Backtrace;
-use std::time::SystemTime;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 
@@ -24,7 +23,6 @@ pub enum Error {
 
 pub struct GraphData {
     pub graph: Graph,
-    pub creation_time: SystemTime,
     pub layout: Option<Layout>,
 }
 

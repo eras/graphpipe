@@ -1,4 +1,3 @@
-use std::time::SystemTime;
 use actix_web::{
     App, HttpServer,
     middleware::Logger,
@@ -11,7 +10,6 @@ use std::sync::Arc;
 
 use crate::graph::{Edge, Graph, Node, NodeId, GraphResponse};
 use crate::graph_data::{GraphData, GraphDataType};
-use crate::layout::Layout;
 use crate::bg_layout::BgLayout;
 
 #[derive(thiserror::Error, Debug)]
@@ -113,8 +111,7 @@ async fn post_graphviz(data: Data<GraphDataType>, body: String) -> actix_web::Re
 
 pub async fn main() -> std::io::Result<()> {
     let graph = Graph::new();
-    let creation_time = SystemTime::now();
-    let graph_data = Arc::new(Mutex::new(GraphData { graph, creation_time, layout: None }));
+    let graph_data = Arc::new(Mutex::new(GraphData { graph, layout: None }));
     let data = Data::new(graph_data.clone());
 
     let bg_layout = BgLayout::new(graph_data.clone());
