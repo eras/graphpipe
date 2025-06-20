@@ -8,6 +8,7 @@ use crate::graph_data::GraphDataType;
 use crate::layout::Layout;
 
 #[derive(thiserror::Error, Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum Error {
     #[error("Graph data error: {source}")]
     GraphDataError {
