@@ -6,7 +6,7 @@ use actix_web::{
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::backtrace::Backtrace;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -55,8 +55,8 @@ pub enum Error {
         source: std::net::AddrParseError,
     },
 
-    #[error("Address parse error: {message}")]
-    InvalidAddressFormatError { message: String },
+    #[error("Failed to resolve address: {message}")]
+    AddressError { message: String },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -70,7 +70,7 @@ impl Error {
             Error::LocalIpAddressError { .. } => None,
             Error::IOError { .. } => None,
             Error::AddrParseError { .. } => None,
-            Error::InvalidAddressFormatError { .. } => None,
+            Error::AddressError { .. } => None,
         }
     }
 }
@@ -150,7 +150,7 @@ async fn post_graphviz(data: Data<GraphDataType>, body: String) -> actix_web::Re
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    /// Address and port to listen on, e.g., "127.0.0.1:8080" or "8080"
+    /// Address and port to listen on, e.g., "127.0.0.1:8080", "hostname:8080", "8080", or "hostname:0", "0" for dynamic port
     #[clap(long)]
     listen: Option<String>,
 }
@@ -191,23 +191,78 @@ fn get_listen_address(listen_arg: Option<String>) -> Result<SocketAddr> {
 
     match listen_arg {
         Some(addr_str) => {
+            // Attempt to parse as a direct SocketAddr first (e.g., "127.0.0.1:8080", "[::1]:8080")
             if let Ok(socket_addr) = addr_str.parse::<SocketAddr>() {
-                // Full address provided (e.g., "127.0.0.1:8080")
                 Ok(socket_addr)
-            } else if let Ok(port) = addr_str.parse::<u16>() {
-                // Only port provided (e.g., "8080")
-                let addr = format!("{}:{}", default_host, port);
-                Ok(addr.parse::<SocketAddr>()?)
-            } else {
-                Err(Error::InvalidAddressFormatError {
-                    message: format!("Invalid listen address format: {}", addr_str),
+            }
+            // If not a direct SocketAddr, try parsing as just a port (e.g., "8080")
+            else if let Ok(port) = addr_str.parse::<u16>() {
+                // If only port is provided, use default_host with that port
+                let bind_tuple = (default_host, port);
+                let mut addrs = bind_tuple
+                    .to_socket_addrs()
+                    .map_err(|e| Error::AddressError {
+                        message: format!(
+                            "Failed to resolve default host '{}': {}",
+                            default_host, e
+                        ),
+                    })?;
+                addrs.next().ok_or_else(|| Error::AddressError {
+                    message: format!(
+                        "No addresses found for default host '{}:{}'",
+                        default_host, port
+                    ),
                 })
+            }
+            // If neither, try parsing as hostname:port (e.g., "localhost:8080", "example.com:0")
+            else {
+                // Split the string into host and port parts
+                let parts: Vec<&str> = addr_str.split(':').collect();
+                if parts.len() == 2 {
+                    let host = parts[0];
+                    let port_str = parts[1];
+
+                    let port: u16 = port_str.parse().map_err(|e| Error::AddressError {
+                        message: format!("Invalid port in '{}': {}", addr_str, e),
+                    })?;
+
+                    let bind_tuple = (host, port);
+                    let mut addrs =
+                        bind_tuple
+                            .to_socket_addrs()
+                            .map_err(|e| Error::AddressError {
+                                message: format!(
+                                    "Failed to resolve host '{}:{}': {}",
+                                    host, port, e
+                                ),
+                            })?;
+                    addrs.next().ok_or_else(|| Error::AddressError {
+                        message: format!("No addresses found for '{}:{}'", host, port),
+                    })
+                } else {
+                    Err(Error::AddressError {
+                        message: format!(
+                            "Invalid listen address format. Expected 'host:port' or 'port': {}",
+                            addr_str
+                        ),
+                    })
+                }
             }
         }
         None => {
-            // No --listen argument, use default
-            let addr = format!("{}:{}", default_host, default_port);
-            Ok(addr.parse::<SocketAddr>()?)
+            // No --listen argument, use default host and default port (0 for dynamic)
+            let bind_tuple = (default_host, default_port);
+            let mut addrs = bind_tuple
+                .to_socket_addrs()
+                .map_err(|e| Error::AddressError {
+                    message: format!("Failed to resolve default host '{}': {}", default_host, e),
+                })?;
+            addrs.next().ok_or_else(|| Error::AddressError {
+                message: format!(
+                    "No addresses found for default host '{}:{}'",
+                    default_host, default_port
+                ),
+            })
         }
     }
 }
