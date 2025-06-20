@@ -7,12 +7,20 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use std::backtrace::Backtrace;
+use std::sync::Arc;
 
 use crate::graph::{Edge, Graph, Node, NodeId};
+use crate::graph_data::{GraphData, GraphDataType};
 use crate::layout::{Layout, NodePos};
 
 #[derive(thiserror::Error, Debug)]
-enum Error {
+pub enum Error {
+    #[error("Graph data error: {source}")]
+    GraphDataError {
+	#[from] source: crate::graph_data::Error,
+	backtrace: Backtrace,
+    },
+
     #[error("Graph error: {source}")]
     GraphError {
 	#[from] source: crate::graph::Error,
@@ -29,6 +37,7 @@ enum Error {
 impl Error {
     pub fn backtrace(&self) -> Option<&Backtrace> {
         match self {
+            Error::GraphDataError { backtrace, .. } => Some(backtrace),
             Error::GraphError { backtrace, .. } => Some(backtrace),
             Error::LayoutError { backtrace, .. } => Some(backtrace),
         }
@@ -44,24 +53,6 @@ impl actix_web::ResponseError for Error {
 
     fn status_code(&self) -> actix_web::http::StatusCode {
 	actix_web::http::StatusCode::from_u16(400u16).unwrap()
-    }
-}
-
-struct GraphData {
-    graph: Graph,
-    creation_time: SystemTime,
-    layout: Option<Layout>,
-}
-
-impl GraphData {
-    fn reset_layout(&mut self) {
-	self.layout = None;
-    }
-    fn update_layout(&mut self) -> Result<&mut Layout, Error> {
-	if self.layout.is_none() {
-	    self.layout = Some(Layout::new(&self.graph)?);
-	}
-	Ok(self.layout.as_mut().unwrap())
     }
 }
 
@@ -92,7 +83,7 @@ struct AddRequest {
 }
 
 #[actix_web::get("/graph")]
-async fn list(data: Data<Mutex<GraphData>>) -> impl Responder {
+async fn list(data: Data<GraphDataType>) -> impl Responder {
     let data = data.lock().await;
 
     // for (node_idx, node_data) in data.graph.graph.node_references() {
@@ -103,7 +94,7 @@ async fn list(data: Data<Mutex<GraphData>>) -> impl Responder {
 }
 
 #[actix_web::post("/graph")]
-async fn add(data: Data<Mutex<GraphData>>, request: web::Json<AddRequest>) -> actix_web::Result<web::Json<Option<String>>, Error> {
+async fn add(data: Data<GraphDataType>, request: web::Json<AddRequest>) -> actix_web::Result<web::Json<Option<String>>, Error> {
     let mut data = data.lock().await;
     data.reset_layout();
     let request = request.into_inner();
@@ -117,7 +108,7 @@ async fn add(data: Data<Mutex<GraphData>>, request: web::Json<AddRequest>) -> ac
 }
 
 #[actix_web::post("/graph/graphviz")]
-async fn post_graphviz(data: Data<Mutex<GraphData>>, body: String) -> actix_web::Result<String> {
+async fn post_graphviz(data: Data<GraphDataType>, body: String) -> actix_web::Result<String> {
     let mut data = data.lock().await;
     data.reset_layout();
     match data.graph.parse_graphviz(&body) {
@@ -131,7 +122,7 @@ async fn post_graphviz(data: Data<Mutex<GraphData>>, body: String) -> actix_web:
 }
 
 #[actix_web::get("/graph/layout")]
-async fn layout(data: Data<Mutex<GraphData>>) -> actix_web::Result<web::Json<NodesEdgesInfo>, Error> {
+async fn layout(data: Data<GraphDataType>) -> actix_web::Result<web::Json<NodesEdgesInfo>, Error> {
     let mut data = data.lock().await;
 
     let layout = data.update_layout()?;
@@ -150,7 +141,8 @@ async fn layout(data: Data<Mutex<GraphData>>) -> actix_web::Result<web::Json<Nod
 pub async fn main() -> std::io::Result<()> {
     let graph = Graph::new();
     let creation_time = SystemTime::now();
-    let data = Data::new(Mutex::new(GraphData { graph, creation_time, layout: None }));
+    let graph_data = Arc::new(Mutex::new(GraphData { graph, creation_time, layout: None }));
+    let data = Data::new(graph_data.clone());
 
     HttpServer::new(move || {
         App::new()

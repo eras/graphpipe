@@ -1,6 +1,7 @@
 #![feature(error_generic_member_access)]
 
 mod graph;
+mod graph_data;
 mod layout;
 mod server;
 
