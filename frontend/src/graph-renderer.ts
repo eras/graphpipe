@@ -65,6 +65,7 @@ let yScale: ScaleLinear<number, number> = scaleLinear();
 // Elements for nodes and links
 let nodeGroup = svg.append("g").attr("class", "nodes");
 let linkGroup = svg.append("g").attr("class", "links");
+let nodeLabelGroup = svg.append("g").attr("class", "nodeLabels");
 
 let lastCreationTime: number | null = null;
 
@@ -133,11 +134,6 @@ function updateGraph(graphData: GraphData): void {
 
     newNodeGroup.append("circle").attr("r", 5); // Default radius
 
-    newNodeGroup
-        .append("text")
-        .text((d: NodeData) => d.node.data.label)
-        .attr("transform", (d: NodeData) => `translate(7, 0)`);
-
     // Update + Enter (position nodes)
     const allNodes = newNodeGroup
         .merge(nodes)
@@ -147,8 +143,36 @@ function updateGraph(graphData: GraphData): void {
                 `translate(${xScale(d.pos[0])},${yScale(d.pos[1])})`
         );
 
+    // --- Update Node labels ---
+    const nodeLabels = nodeLabelGroup
+        .selectAll<SVGGElement, NodeData>(".nodeLabel") // Explicitly type the selection
+        .data(graphData.nodes, (d) => d.node.id); // Key for unique nodeLabels
+
+    // Exit
+    nodeLabels.exit().remove();
+
+    // Enter
+    const newNodeLabelGroup = nodeLabels
+        .enter()
+        .append("g")
+        .attr("class", "nodeLabel");
+
+    newNodeLabelGroup
+        .append("text")
+        .text((d: NodeData) => d.node.data.label)
+        .attr("transform", (d: NodeData) => `translate(7, 0)`);
+
+    // Update + Enter (position nodes)
+    const allNodeLabels = newNodeLabelGroup
+        .merge(nodeLabels)
+        .attr(
+            "transform",
+            (d: NodeData) =>
+                `translate(${xScale(d.pos[0])},${yScale(d.pos[1])})`
+        );
+
     // Update text (in case labels change)
-    allNodes.select("text").text((d: NodeData) => d.node.data.label);
+    allNodeLabels.select("text").text((d: NodeData) => d.node.data.label);
 }
 
 /**

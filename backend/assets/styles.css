@@ -22,7 +22,7 @@ body {
     stroke-width: 1.5px;
     cursor: pointer;
 }
-.node text {
+.nodeLabel text {
     font-size: 10px;
     dominant-baseline: central;
     pointer-events: none; /* Make text not interfere with circle clicks */
