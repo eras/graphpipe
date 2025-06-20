@@ -3,8 +3,10 @@ use actix_web::{
     web::{self, Data},
     App, HttpServer,
 };
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::backtrace::Backtrace;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -118,32 +120,77 @@ async fn post_graphviz(data: Data<GraphDataType>, body: String) -> actix_web::Re
     }
 }
 
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Address and port to listen on, e.g., "127.0.0.1:8080" or "8080"
+    #[clap(long)]
+    listen: Option<String>,
+}
+
+// Function to configure and run the Actix-web server
+async fn run_server(
+    listen_addr: SocketAddr,
+    data: web::Data<GraphDataType>,
+) -> std::io::Result<()> {
+    println!("Starting server on http://{}", listen_addr);
+    HttpServer::new(move || {
+        App::new()
+            .wrap(Logger::default())
+            .app_data(data.clone())
+            .service(list)
+            .service(add)
+            .service(post_graphviz)
+            .service(actix_files::Files::new("/", "./backend/assets").index_file("index.html"))
+    })
+    .bind(listen_addr)?
+    .run()
+    .await
+}
+
+// Function to handle the listening address logic
+fn get_listen_address(
+    listen_arg: Option<String>,
+) -> Result<SocketAddr, Box<dyn std::error::Error>> {
+    let default_port = 8080;
+    let default_host = "127.0.0.1";
+
+    match listen_arg {
+        Some(addr_str) => {
+            if let Ok(socket_addr) = addr_str.parse::<SocketAddr>() {
+                // Full address provided (e.g., "127.0.0.1:8080")
+                Ok(socket_addr)
+            } else if let Ok(port) = addr_str.parse::<u16>() {
+                // Only port provided (e.g., "8080")
+                let addr = format!("{}:{}", default_host, port);
+                Ok(addr.parse::<SocketAddr>()?)
+            } else {
+                Err(format!("Invalid listen address format: {}", addr_str).into())
+            }
+        }
+        None => {
+            // No --listen argument, use default
+            let addr = format!("{}:{}", default_host, default_port);
+            Ok(addr.parse::<SocketAddr>()?)
+        }
+    }
+}
+
 pub async fn main() -> std::io::Result<()> {
+    let args = Args::parse();
+
     let graph = Graph::new();
     let graph_data = Arc::new(Mutex::new(GraphData {
         graph,
         layout: None,
     }));
-    let data = Data::new(graph_data.clone());
+    let data = web::Data::new(graph_data.clone()); // Wrap in web::Data
 
     let bg_layout = BgLayout::new(graph_data.clone());
     bg_layout.start();
 
-    HttpServer::new(move || {
-        App::new()
-            .wrap(Logger::default())
-            .app_data(Data::clone(&data))
-            .service(list)
-            .service(add)
-            .service(post_graphviz)
-            .service(
-                actix_files::Files::new("/", "./backend/assets").index_file("index.html"), // Specifies the default file for directory requests
-                                                                                           // .show_files_listing() // Optional: Enable to show directory listings if no index file
-            )
-    })
-    .bind(("127.0.0.1", 8080))?
-    .run()
-    .await
+    let listen_addr = get_listen_address(args.listen)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e.to_string()))?;
 
-    //Ok(())
+    run_server(listen_addr, data).await
 }
