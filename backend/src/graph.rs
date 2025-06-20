@@ -1,38 +1,26 @@
+use bimap::BiMap;
+use petgraph::graph::{EdgeIndex, NodeIndex};
+use petgraph::visit::EdgeRef;
 use petgraph::Graph as PetGraph;
-use petgraph::graph::{NodeIndex, EdgeIndex};
 use serde::{Deserialize, Serialize};
+use std::backtrace::Backtrace;
 use std::collections::HashMap;
 use std::str::FromStr as _;
 use std::time::SystemTime;
-use bimap::BiMap;
-use std::backtrace::Backtrace;
-use petgraph::visit::EdgeRef;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Node not found: {id}")]
-    NodeNotFound{
-	id: String,
-	backtrace: Backtrace,
-    },
+    NodeNotFound { id: String, backtrace: Backtrace },
 
     #[error("Edge not found: {id}")]
-    EdgeNotFound{
-	id: String,
-	backtrace: Backtrace,
-    },
+    EdgeNotFound { id: String, backtrace: Backtrace },
 
     #[error("Internal error: node index {index} not found")]
-    NodeIndexNotFound{
-	index: usize,
-	backtrace: Backtrace,
-    },
+    NodeIndexNotFound { index: usize, backtrace: Backtrace },
 
     #[error("Internal error: edge index {index} not found")]
-    EdgeIndexNotFound{
-	index: usize,
-	backtrace: Backtrace,
-    },
+    EdgeIndexNotFound { index: usize, backtrace: Backtrace },
 
     #[error("Unsupported edge node type")]
     UnsupportedEdgeNode,
@@ -43,19 +31,31 @@ pub enum Error {
 
 impl Error {
     fn node_not_found(id: &str) -> Error {
-	Error::NodeNotFound { id: String::from(id), backtrace: Backtrace::capture() }
+        Error::NodeNotFound {
+            id: String::from(id),
+            backtrace: Backtrace::capture(),
+        }
     }
 
     fn edge_not_found(id: &str) -> Error {
-	Error::EdgeNotFound { id: String::from(id), backtrace: Backtrace::capture() }
+        Error::EdgeNotFound {
+            id: String::from(id),
+            backtrace: Backtrace::capture(),
+        }
     }
 
     fn node_index_not_found(index: usize) -> Error {
-	Error::NodeIndexNotFound { index, backtrace: Backtrace::capture() }
+        Error::NodeIndexNotFound {
+            index,
+            backtrace: Backtrace::capture(),
+        }
     }
 
     fn edge_index_not_found(index: usize) -> Error {
-	Error::EdgeIndexNotFound { index, backtrace: Backtrace::capture() }
+        Error::EdgeIndexNotFound {
+            index,
+            backtrace: Backtrace::capture(),
+        }
     }
 }
 
@@ -112,18 +112,17 @@ pub struct Node {
 
 impl Node {
     pub fn layout_node(&self) -> fjadra::Node {
-	let node = fjadra::Node::default();
-	let node =
-	    if let Some(Pos(x, y)) = &self.pos {
-		node.position(x.clone(), y.clone())
-	    }
-	    else
-	    { node };
-	node
+        let node = fjadra::Node::default();
+        let node = if let Some(Pos(x, y)) = &self.pos {
+            node.position(x.clone(), y.clone())
+        } else {
+            node
+        };
+        node
     }
 
     pub fn set_pos(&mut self, pos: Pos) {
-	self.pos = Some(pos);
+        self.pos = Some(pos);
     }
 }
 
@@ -154,165 +153,217 @@ impl Graph {
     pub fn new() -> Graph {
         Graph {
             graph: PetGraph::new(),
-	    node_id_map: BiMap::new(),
-	    edge_id_map: BiMap::new(),
-	    id_counter: 0usize,
-	    creation_time: SystemTime::now(),
+            node_id_map: BiMap::new(),
+            edge_id_map: BiMap::new(),
+            id_counter: 0usize,
+            creation_time: SystemTime::now(),
         }
     }
 
     pub fn graph_response(&self) -> GraphResponse {
-	let nodes: Vec<_> = self.graph.node_weights().map(|x| x.clone()).collect();
-	let edges: Vec<_> = self.graph.edge_references().map(|edge| (
-	    self.resolve_node_id(edge.source()).expect("Edge source missing"),
-	    self.resolve_node_id(edge.target()).expect("Edge target missing"),
-	    edge.weight().clone(),
-	)).collect();
-	let creation_time = self.creation_time.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs_f64();
-	GraphResponse { nodes, edges, creation_time }
+        let nodes: Vec<_> = self.graph.node_weights().map(|x| x.clone()).collect();
+        let edges: Vec<_> = self
+            .graph
+            .edge_references()
+            .map(|edge| {
+                (
+                    self.resolve_node_id(edge.source())
+                        .expect("Edge source missing"),
+                    self.resolve_node_id(edge.target())
+                        .expect("Edge target missing"),
+                    edge.weight().clone(),
+                )
+            })
+            .collect();
+        let creation_time = self
+            .creation_time
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs_f64();
+        GraphResponse {
+            nodes,
+            edges,
+            creation_time,
+        }
     }
 
     // Note! This function does not update node_id_map, you need to do it yourself
     #[allow(dead_code)]
     fn new_node_id(&mut self) -> NodeId {
-	loop {
-	    self.id_counter += 1;
+        loop {
+            self.id_counter += 1;
             let id = NodeId(format!("_gpn{}", self.id_counter));
-	    if !self.node_id_map.contains_left(&id) {
-		//self.node_id_map.insert(id.clone(), self.node_index_gen.acquire_id());
-		return id
-	    }
-	}
+            if !self.node_id_map.contains_left(&id) {
+                //self.node_id_map.insert(id.clone(), self.node_index_gen.acquire_id());
+                return id;
+            }
+        }
     }
 
     // Note! This function does not update edge_id_map, you need to do it yourself
     fn new_edge_id(&mut self) -> EdgeId {
-	loop {
-	    self.id_counter += 1;
+        loop {
+            self.id_counter += 1;
             let id = EdgeId(format!("_gpe{}", self.id_counter));
-	    if !self.edge_id_map.contains_left(&id) {
-		//self.edge_id_map.insert(id.clone(), self.edge_index_gen.acquire_id());
-		return id
-	    }
-	}
+            if !self.edge_id_map.contains_left(&id) {
+                //self.edge_id_map.insert(id.clone(), self.edge_index_gen.acquire_id());
+                return id;
+            }
+        }
     }
 
     pub fn add_node(&mut self, node: Node) {
-	let node_id = node.id.clone();
-	let node_index =
-	    if let Some(node_index) = self.node_id_map.get_by_left(&node_id) {
-		node_index.clone()
-	    } else {
-		self.graph.add_node(node)
-	    };
-	self.node_id_map.insert(node_id, node_index);
+        let node_id = node.id.clone();
+        let node_index = if let Some(node_index) = self.node_id_map.get_by_left(&node_id) {
+            node_index.clone()
+        } else {
+            self.graph.add_node(node)
+        };
+        self.node_id_map.insert(node_id, node_index);
     }
 
     pub fn ensure_node(&mut self, node_id: &NodeId) {
-	if let Some(_node_index) = self.node_id_map.get_by_left(node_id) {
-	    // OK
-	} else {
-	    let node = Node {
-		id: node_id.clone(),
-		data: NodeData {label: node_id.0.clone()},
-		pos: None,
-	    };
-	    self.add_node(node);
-	}
+        if let Some(_node_index) = self.node_id_map.get_by_left(node_id) {
+            // OK
+        } else {
+            let node = Node {
+                id: node_id.clone(),
+                data: NodeData {
+                    label: node_id.0.clone(),
+                },
+                pos: None,
+            };
+            self.add_node(node);
+        }
     }
 
     pub fn get_node_mut(&mut self, node_id: &NodeId) -> Result<&mut Node> {
-	let node_index = self.resolve_node_index(node_id)?;
-	Ok(self.graph.node_weight_mut(node_index).ok_or(Error::node_not_found(&node_id.0))?)
+        let node_index = self.resolve_node_index(node_id)?;
+        Ok(self
+            .graph
+            .node_weight_mut(node_index)
+            .ok_or(Error::node_not_found(&node_id.0))?)
     }
 
     pub fn node_neighbors(&self, node_id: &NodeId) -> Result<Vec<&Node>> {
-	let node_index = self.resolve_node_index(node_id)?;
-	let neighbors : Result<Vec<_>> =
-	    self.graph.neighbors_undirected(node_index).map(|node_index| self.graph.node_weight(node_index).ok_or(Error::node_index_not_found(node_index.index()))).collect();
-	Ok(neighbors?)
+        let node_index = self.resolve_node_index(node_id)?;
+        let neighbors: Result<Vec<_>> = self
+            .graph
+            .neighbors_undirected(node_index)
+            .map(|node_index| {
+                self.graph
+                    .node_weight(node_index)
+                    .ok_or(Error::node_index_not_found(node_index.index()))
+            })
+            .collect();
+        Ok(neighbors?)
     }
 
     pub fn resolve_node_index(&self, node_id: &NodeId) -> Result<NodeIndex> {
-	Ok(self.node_id_map.get_by_left(node_id).ok_or(Error::node_not_found(&node_id.0))?.clone())
+        Ok(self
+            .node_id_map
+            .get_by_left(node_id)
+            .ok_or(Error::node_not_found(&node_id.0))?
+            .clone())
     }
 
     pub fn resolve_node_id(&self, node_index: NodeIndex) -> Result<NodeId> {
-	Ok(self.node_id_map.get_by_right(&node_index).ok_or(Error::node_index_not_found(node_index.index()))?.clone())
+        Ok(self
+            .node_id_map
+            .get_by_right(&node_index)
+            .ok_or(Error::node_index_not_found(node_index.index()))?
+            .clone())
     }
 
     #[allow(dead_code)]
     pub fn resolve_edge_index(&self, edge_id: EdgeId) -> Result<EdgeIndex> {
-	Ok(self.edge_id_map.get_by_left(&edge_id).ok_or(Error::edge_not_found(&edge_id.0))?.clone())
+        Ok(self
+            .edge_id_map
+            .get_by_left(&edge_id)
+            .ok_or(Error::edge_not_found(&edge_id.0))?
+            .clone())
     }
 
     #[allow(dead_code)]
     pub fn resolve_edge_id(&self, edge_index: EdgeIndex) -> Result<EdgeId> {
-	Ok(self.edge_id_map.get_by_right(&edge_index).ok_or(Error::edge_index_not_found(edge_index.index()))?.clone())
+        Ok(self
+            .edge_id_map
+            .get_by_right(&edge_index)
+            .ok_or(Error::edge_index_not_found(edge_index.index()))?
+            .clone())
     }
 
     pub fn add_edge(&mut self, a: NodeId, b: NodeId, _edge: Edge) -> Result<()> {
         let edge_id = self.new_edge_id();
-        let edge = Edge { id: edge_id.clone() };
+        let edge = Edge {
+            id: edge_id.clone(),
+        };
 
         let edge_index = self.graph.add_edge(
             self.resolve_node_index(&a)?,
             self.resolve_node_index(&b)?,
             edge,
         );
-	self.edge_id_map.insert(edge_id, edge_index);
-	Ok(())
+        self.edge_id_map.insert(edge_id, edge_index);
+        Ok(())
     }
 
     pub fn parse_graphviz(&mut self, data: &str) -> Result<(), Error> {
-	let ast = graphviz_parser::DotGraph::from_str(&data)?;
-	if let graphviz_parser::DotGraph::Directed(graph) = ast {
-	    use graphviz_parser::ast_nodes::Statement;
-	    use graphviz_parser::ast_nodes::{EdgeLHS, EdgeRHS};
-	    for statement in graph.statements {
-		match statement {
-		    Statement::Node(n) => {
-			let attrs = attr_map(&n.attribute_list);
-			let node =
-			    Node { id: NodeId(n.id.clone()),
-				   data: NodeData { label: attrs.get("label").unwrap_or(&&n.id).to_string() },
-				   pos: None };
-			self.add_node(node);
-		    },
-		    Statement::Edge(e) => {
-			let edge = Edge { id: self.new_edge_id() };
-			let lhs_id = match e.lhs {
-			    EdgeLHS::Node(node) => NodeId(node.id),
-			    _ => return Err(Error::UnsupportedEdgeNode)
-			};
-			let rhs_id = match *e.rhs {
-			    EdgeRHS::Node(node) => NodeId(node.id),
-			    _ => return Err(Error::UnsupportedEdgeNode)
-			};
-			self.ensure_node(&lhs_id);
-			self.ensure_node(&rhs_id);
-			self.add_edge(lhs_id, rhs_id, edge).unwrap();
-		    },
-		    _ => {
-			// Ignore others
-		    }
-		}
-	    }
-	    //assert_eq!(node_ids, vec!["a", "b", "c"]);
-	}
+        let ast = graphviz_parser::DotGraph::from_str(&data)?;
+        if let graphviz_parser::DotGraph::Directed(graph) = ast {
+            use graphviz_parser::ast_nodes::Statement;
+            use graphviz_parser::ast_nodes::{EdgeLHS, EdgeRHS};
+            for statement in graph.statements {
+                match statement {
+                    Statement::Node(n) => {
+                        let attrs = attr_map(&n.attribute_list);
+                        let node = Node {
+                            id: NodeId(n.id.clone()),
+                            data: NodeData {
+                                label: attrs.get("label").unwrap_or(&&n.id).to_string(),
+                            },
+                            pos: None,
+                        };
+                        self.add_node(node);
+                    }
+                    Statement::Edge(e) => {
+                        let edge = Edge {
+                            id: self.new_edge_id(),
+                        };
+                        let lhs_id = match e.lhs {
+                            EdgeLHS::Node(node) => NodeId(node.id),
+                            _ => return Err(Error::UnsupportedEdgeNode),
+                        };
+                        let rhs_id = match *e.rhs {
+                            EdgeRHS::Node(node) => NodeId(node.id),
+                            _ => return Err(Error::UnsupportedEdgeNode),
+                        };
+                        self.ensure_node(&lhs_id);
+                        self.ensure_node(&rhs_id);
+                        self.add_edge(lhs_id, rhs_id, edge).unwrap();
+                    }
+                    _ => {
+                        // Ignore others
+                    }
+                }
+            }
+            //assert_eq!(node_ids, vec!["a", "b", "c"]);
+        }
 
-	Ok(())
+        Ok(())
     }
 }
 
-fn attr_map(attr_list: &Option<graphviz_parser::ast_nodes::AttributeList>) -> HashMap<&str, &String> {
+fn attr_map(
+    attr_list: &Option<graphviz_parser::ast_nodes::AttributeList>,
+) -> HashMap<&str, &String> {
     let mut attrs = HashMap::new();
     if let Some(attribute_list) = attr_list {
-	for attr_group in attribute_list {
-	    for assignment in attr_group {
-		attrs.insert(assignment.lhs.as_str(), &assignment.rhs);
-	    }
-	}
+        for attr_group in attribute_list {
+            for assignment in attr_group {
+                attrs.insert(assignment.lhs.as_str(), &assignment.rhs);
+            }
+        }
     }
     attrs
 }

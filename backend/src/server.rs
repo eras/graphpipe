@@ -1,35 +1,38 @@
 use actix_web::{
-    App, HttpServer,
     middleware::Logger,
     web::{self, Data},
+    App, HttpServer,
 };
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
 use std::backtrace::Backtrace;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
-use crate::graph::{Edge, Graph, Node, NodeId, GraphResponse};
-use crate::graph_data::{GraphData, GraphDataType};
 use crate::bg_layout::BgLayout;
+use crate::graph::{Edge, Graph, GraphResponse, Node, NodeId};
+use crate::graph_data::{GraphData, GraphDataType};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Graph data error: {source}")]
     GraphDataError {
-	#[from] source: crate::graph_data::Error,
-	backtrace: Backtrace,
+        #[from]
+        source: crate::graph_data::Error,
+        backtrace: Backtrace,
     },
 
     #[error("Graph error: {source}")]
     GraphError {
-	#[from] source: crate::graph::Error,
-	backtrace: Backtrace,
+        #[from]
+        source: crate::graph::Error,
+        backtrace: Backtrace,
     },
 
     #[error("Layout error: {source}")]
-    LayoutError{
-	#[from] source: crate::layout::Error,
-	backtrace: Backtrace,
+    LayoutError {
+        #[from]
+        source: crate::layout::Error,
+        backtrace: Backtrace,
     },
 }
 
@@ -45,13 +48,13 @@ impl Error {
 
 impl actix_web::ResponseError for Error {
     fn error_response(&self) -> actix_web::HttpResponse<actix_web::body::BoxBody> {
-	actix_web::HttpResponse::build(self.status_code())
+        actix_web::HttpResponse::build(self.status_code())
             .insert_header(actix_web::http::header::ContentType::html())
             .body(format!("{}. Backtrace: {:?}", &self, self.backtrace()))
     }
 
     fn status_code(&self) -> actix_web::http::StatusCode {
-	actix_web::http::StatusCode::from_u16(400u16).unwrap()
+        actix_web::http::StatusCode::from_u16(400u16).unwrap()
     }
 }
 
@@ -62,9 +65,13 @@ struct EdgeRequest {
     edge: Edge,
 }
 
-fn no_nodes() -> Vec<Node> { Vec::new() }
+fn no_nodes() -> Vec<Node> {
+    Vec::new()
+}
 
-fn no_edge_requests() -> Vec<EdgeRequest> { Vec::new() }
+fn no_edge_requests() -> Vec<EdgeRequest> {
+    Vec::new()
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct AddRequest {
@@ -82,7 +89,10 @@ async fn list(data: Data<GraphDataType>) -> actix_web::Result<web::Json<GraphRes
 }
 
 #[actix_web::post("/graph")]
-async fn add(data: Data<GraphDataType>, request: web::Json<AddRequest>) -> actix_web::Result<web::Json<Option<String>>, Error> {
+async fn add(
+    data: Data<GraphDataType>,
+    request: web::Json<AddRequest>,
+) -> actix_web::Result<web::Json<Option<String>>, Error> {
     let mut data = data.lock().await;
     data.reset_layout();
     let request = request.into_inner();
@@ -100,18 +110,20 @@ async fn post_graphviz(data: Data<GraphDataType>, body: String) -> actix_web::Re
     let mut data = data.lock().await;
     data.reset_layout();
     match data.graph.parse_graphviz(&body) {
-	Ok(()) => {
-	    Ok(format!(""))
-	},
-	Err(error) => {
-	    Err(actix_web::error::ErrorBadRequest(format!("Parse error: {:?}", error)))
-	}
+        Ok(()) => Ok(format!("")),
+        Err(error) => Err(actix_web::error::ErrorBadRequest(format!(
+            "Parse error: {:?}",
+            error
+        ))),
     }
 }
 
 pub async fn main() -> std::io::Result<()> {
     let graph = Graph::new();
-    let graph_data = Arc::new(Mutex::new(GraphData { graph, layout: None }));
+    let graph_data = Arc::new(Mutex::new(GraphData {
+        graph,
+        layout: None,
+    }));
     let data = Data::new(graph_data.clone());
 
     let bg_layout = BgLayout::new(graph_data.clone());
@@ -124,11 +136,10 @@ pub async fn main() -> std::io::Result<()> {
             .service(list)
             .service(add)
             .service(post_graphviz)
-	    .service(actix_files::Files::new("/", "./backend/assets")
-                     .index_file("index.html") // Specifies the default file for directory requests
-                     // .show_files_listing() // Optional: Enable to show directory listings if no index file
+            .service(
+                actix_files::Files::new("/", "./backend/assets").index_file("index.html"), // Specifies the default file for directory requests
+                                                                                           // .show_files_listing() // Optional: Enable to show directory listings if no index file
             )
-
     })
     .bind(("127.0.0.1", 8080))?
     .run()
