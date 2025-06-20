@@ -144,7 +144,7 @@ pub struct Graph {
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
-pub struct NodesEdgesInfo {
+pub struct GraphResponse {
     pub nodes: Vec<Node>,
     pub edges: Vec<(NodeId, NodeId, Edge)>,
     pub creation_time: f64,
@@ -161,7 +161,7 @@ impl Graph {
         }
     }
 
-    pub fn nodes_edges_info(&self) -> NodesEdgesInfo {
+    pub fn graph_response(&self) -> GraphResponse {
 	let nodes: Vec<_> = self.graph.node_weights().map(|x| x.clone()).collect();
 	let edges: Vec<_> = self.graph.edge_references().map(|edge| (
 	    self.resolve_node_id(edge.source()).expect("Edge source missing"),
@@ -169,7 +169,7 @@ impl Graph {
 	    edge.weight().clone(),
 	)).collect();
 	let creation_time = self.creation_time.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs_f64();
-	NodesEdgesInfo { nodes, edges, creation_time }
+	GraphResponse { nodes, edges, creation_time }
     }
 
     // Note! This function does not update node_id_map, you need to do it yourself

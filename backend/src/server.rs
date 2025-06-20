@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 use std::backtrace::Backtrace;
 use std::sync::Arc;
 
-use crate::graph::{Edge, Graph, Node, NodeId, NodesEdgesInfo};
+use crate::graph::{Edge, Graph, Node, NodeId, GraphResponse};
 use crate::graph_data::{GraphData, GraphDataType};
 use crate::layout::Layout;
 use crate::bg_layout::BgLayout;
@@ -77,9 +77,9 @@ struct AddRequest {
 }
 
 #[actix_web::get("/graph")]
-async fn list(data: Data<GraphDataType>) -> actix_web::Result<web::Json<NodesEdgesInfo>, Error> {
+async fn list(data: Data<GraphDataType>) -> actix_web::Result<web::Json<GraphResponse>, Error> {
     let data = data.lock().await;
-    let nodes_edges = data.graph.nodes_edges_info();
+    let nodes_edges = data.graph.graph_response();
     Ok(web::Json(nodes_edges))
 }
 
