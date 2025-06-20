@@ -129,6 +129,8 @@ async fn add(
         data.graph.add_node(node)
     }
     for edge in request.edges {
+        data.graph.ensure_node(&edge.a);
+        data.graph.ensure_node(&edge.b);
         data.graph.add_edge(edge.a, edge.b, edge.edge)?
     }
     Ok(web::Json(None::<String>))
