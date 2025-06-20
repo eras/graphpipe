@@ -4,14 +4,12 @@ import { min, max } from "d3-array"; // For d3.min, d3.max
 
 // Define interfaces for graph data
 interface NodeData {
-    node: {
-        id: string;
-        data: {
-            label: string;
-            // Add other properties if they exist in your node data
-        };
-        // Add other properties if they exist in your node structure
+    id: string;
+    data: {
+        label: string;
+        // Add other properties if they exist in your node data
     };
+    // Add other properties if they exist in your node structure
     pos: [number, number]; // [x, y] coordinates
 }
 
@@ -30,7 +28,7 @@ interface GraphData {
     creation_time: number;
 }
 
-const GRAPH_ENDPOINT: string = "/graph/layout";
+const GRAPH_ENDPOINT: string = "/graph";
 const POLL_INTERVAL_MS: number = 100;
 
 const margin = { top: 20, right: 20, bottom: 20, left: 20 };
@@ -81,7 +79,7 @@ function updateGraph(graphData: GraphData): void {
 
     // Create a map for quick node lookup by ID
     const nodesById = new Map<string, NodeData>(
-        graphData.nodes.map((d) => [d.node.id, d])
+        graphData.nodes.map((d) => [d.id, d])
     );
 
     // Extract x and y positions from nodes for scaling
@@ -124,7 +122,7 @@ function updateGraph(graphData: GraphData): void {
     // --- Update Nodes ---
     const nodes = nodeGroup
         .selectAll<SVGGElement, NodeData>(".node") // Explicitly type the selection
-        .data(graphData.nodes, (d) => d.node.id); // Key for unique nodes
+        .data(graphData.nodes, (d) => d.id); // Key for unique nodes
 
     // Exit
     nodes.exit().remove();
@@ -146,7 +144,7 @@ function updateGraph(graphData: GraphData): void {
     // --- Update Node labels ---
     const nodeLabels = nodeLabelGroup
         .selectAll<SVGGElement, NodeData>(".nodeLabel") // Explicitly type the selection
-        .data(graphData.nodes, (d) => d.node.id); // Key for unique nodeLabels
+        .data(graphData.nodes, (d) => d.id); // Key for unique nodeLabels
 
     // Exit
     nodeLabels.exit().remove();
@@ -159,7 +157,7 @@ function updateGraph(graphData: GraphData): void {
 
     newNodeLabelGroup
         .append("text")
-        .text((d: NodeData) => d.node.data.label)
+        .text((d: NodeData) => d.data.label)
         .attr("transform", (d: NodeData) => `translate(7, 0)`);
 
     // Update + Enter (position nodes)
@@ -172,7 +170,7 @@ function updateGraph(graphData: GraphData): void {
         );
 
     // Update text (in case labels change)
-    allNodeLabels.select("text").text((d: NodeData) => d.node.data.label);
+    allNodeLabels.select("text").text((d: NodeData) => d.data.label);
 }
 
 /**

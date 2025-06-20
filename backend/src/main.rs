@@ -1,5 +1,6 @@
 #![feature(error_generic_member_access)]
 
+mod bg_layout;
 mod graph;
 mod graph_data;
 mod layout;

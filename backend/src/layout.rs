@@ -11,12 +11,6 @@ pub enum Error {
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-#[derive(serde::Serialize, Debug, Clone)]
-pub struct NodePos {
-    node: graph::Node,
-    pos: graph::Pos,
-}
-
 pub struct Layout {
     nodes: Vec<graph::Node>,
     edges: Vec<(graph::NodeId, graph::NodeId, graph::Edge)>,
@@ -31,7 +25,7 @@ impl From<graph::Node> for Node {
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct NodesEdges {
-    pub nodes: Vec<NodePos>,
+    pub nodes: Vec<graph::Node>,
     pub edges: Vec<(graph::NodeId, graph::NodeId, graph::Edge)>,
 }
 
@@ -110,9 +104,9 @@ impl Layout {
 	let positions = self.sim.positions();
 
         let nodes =
-            std::iter::zip(self.nodes.iter(), positions).map(|(node, pos)| NodePos {
-                node: node.clone(),
-                pos: graph::Pos(pos[0], pos[1]),
+            std::iter::zip(self.nodes.iter(), positions).map(|(node, pos)| graph::Node {
+                pos: Some(graph::Pos(pos[0], pos[1])),
+		..node.clone()
             });
 
         NodesEdges {
@@ -122,9 +116,11 @@ impl Layout {
     }
 
     pub fn apply(nodes_edges: &NodesEdges, graph: &mut graph::Graph) -> Result<(), Error> {
-	for node_pos in &nodes_edges.nodes {
-	    let node = graph.get_node_mut(&node_pos.node.id)?;
-	    node.set_pos(node_pos.pos.clone());
+	for node in &nodes_edges.nodes {
+	    let graph_node = graph.get_node_mut(&node.id)?;
+	    if let Some(pos) = &node.pos {
+		graph_node.set_pos(pos.clone());
+	    }
 	}
 	Ok(())
     }

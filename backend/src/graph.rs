@@ -3,8 +3,10 @@ use petgraph::graph::{NodeIndex, EdgeIndex};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr as _;
+use std::time::SystemTime;
 use bimap::BiMap;
 use std::backtrace::Backtrace;
+use petgraph::visit::EdgeRef;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -130,12 +132,22 @@ pub struct Edge {
     pub id: EdgeId,
 }
 
+pub type PetGraphType = PetGraph<Node, Edge>;
+
 #[derive(Debug, Clone)]
 pub struct Graph {
-    pub graph: PetGraph<Node, Edge>,
+    pub graph: PetGraphType,
     node_id_map: BiMap<NodeId, NodeIndex>,
     edge_id_map: BiMap<EdgeId, EdgeIndex>,
     id_counter: usize,
+    creation_time: SystemTime,
+}
+
+#[derive(serde::Serialize, Debug, Clone)]
+pub struct NodesEdgesInfo {
+    pub nodes: Vec<Node>,
+    pub edges: Vec<(NodeId, NodeId, Edge)>,
+    pub creation_time: f64,
 }
 
 impl Graph {
@@ -145,7 +157,19 @@ impl Graph {
 	    node_id_map: BiMap::new(),
 	    edge_id_map: BiMap::new(),
 	    id_counter: 0usize,
+	    creation_time: SystemTime::now(),
         }
+    }
+
+    pub fn nodes_edges_info(&self) -> NodesEdgesInfo {
+	let nodes: Vec<_> = self.graph.node_weights().map(|x| x.clone()).collect();
+	let edges: Vec<_> = self.graph.edge_references().map(|edge| (
+	    self.resolve_node_id(edge.source()).expect("Edge source missing"),
+	    self.resolve_node_id(edge.target()).expect("Edge target missing"),
+	    edge.weight().clone(),
+	)).collect();
+	let creation_time = self.creation_time.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs_f64();
+	NodesEdgesInfo { nodes, edges, creation_time }
     }
 
     // Note! This function does not update node_id_map, you need to do it yourself
