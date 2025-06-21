@@ -35,7 +35,6 @@ impl Layout {
         let nodes: Result<Vec<graph::Node>> = g
             .graph
             .node_references()
-            .into_iter()
             .map(|(_node_index, node)| Layout::update_node_pos(node.clone(), g))
             .collect();
         let nodes = nodes?;
@@ -46,7 +45,6 @@ impl Layout {
                 Link::new(
                     edges
                         .clone()
-                        .into_iter()
                         .map(|edge| (edge.source().index(), edge.target().index())),
                 )
                 .strength(0.1)

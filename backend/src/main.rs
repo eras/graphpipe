@@ -46,6 +46,7 @@ struct Args {
 }
 
 // Function to handle the listening address logic
+#[allow(clippy::result_large_err)]
 fn get_listen_address(listen_arg: Option<String>) -> Result<SocketAddr> {
     let default_port = 0;
     let default_host = "127.0.0.1";
@@ -63,16 +64,10 @@ fn get_listen_address(listen_arg: Option<String>) -> Result<SocketAddr> {
                 let mut addrs = bind_tuple
                     .to_socket_addrs()
                     .map_err(|e| Error::AddressError {
-                        message: format!(
-                            "Failed to resolve default host '{}': {}",
-                            default_host, e
-                        ),
+                        message: format!("Failed to resolve default host '{default_host}': {e}"),
                     })?;
                 addrs.next().ok_or_else(|| Error::AddressError {
-                    message: format!(
-                        "No addresses found for default host '{}:{}'",
-                        default_host, port
-                    ),
+                    message: format!("No addresses found for default host '{default_host}:{port}'"),
                 })
             }
             // If neither, try parsing as hostname:port (e.g., "localhost:8080", "example.com:0")
@@ -84,7 +79,7 @@ fn get_listen_address(listen_arg: Option<String>) -> Result<SocketAddr> {
                     let port_str = parts[1];
 
                     let port: u16 = port_str.parse().map_err(|e| Error::AddressError {
-                        message: format!("Invalid port in '{}': {}", addr_str, e),
+                        message: format!("Invalid port in '{addr_str}': {e}"),
                     })?;
 
                     let bind_tuple = (host, port);
@@ -92,19 +87,15 @@ fn get_listen_address(listen_arg: Option<String>) -> Result<SocketAddr> {
                         bind_tuple
                             .to_socket_addrs()
                             .map_err(|e| Error::AddressError {
-                                message: format!(
-                                    "Failed to resolve host '{}:{}': {}",
-                                    host, port, e
-                                ),
+                                message: format!("Failed to resolve host '{host}:{port}': {e}"),
                             })?;
                     addrs.next().ok_or_else(|| Error::AddressError {
-                        message: format!("No addresses found for '{}:{}'", host, port),
+                        message: format!("No addresses found for '{host}:{port}'"),
                     })
                 } else {
                     Err(Error::AddressError {
                         message: format!(
-                            "Invalid listen address format. Expected 'host:port' or 'port': {}",
-                            addr_str
+                            "Invalid listen address format. Expected 'host:port' or 'port': {addr_str}",
                         ),
                     })
                 }
@@ -116,18 +107,18 @@ fn get_listen_address(listen_arg: Option<String>) -> Result<SocketAddr> {
             let mut addrs = bind_tuple
                 .to_socket_addrs()
                 .map_err(|e| Error::AddressError {
-                    message: format!("Failed to resolve default host '{}': {}", default_host, e),
+                    message: format!("Failed to resolve default host '{default_host}': {e}"),
                 })?;
             addrs.next().ok_or_else(|| Error::AddressError {
                 message: format!(
-                    "No addresses found for default host '{}:{}'",
-                    default_host, default_port
+                    "No addresses found for default host '{default_host}:{default_port}'",
                 ),
             })
         }
     }
 }
 
+#[allow(clippy::result_large_err)]
 #[tokio::main]
 pub async fn main() -> Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or("error"));

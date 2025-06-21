@@ -114,12 +114,11 @@ pub struct Node {
 impl Node {
     pub fn layout_node(&self) -> fjadra::Node {
         let node = fjadra::Node::default();
-        let node = if let Some(Pos(x, y)) = &self.pos {
-            node.position(x.clone(), y.clone())
+        if let Some(Pos(x, y)) = &self.pos {
+            node.position(*x, *y)
         } else {
             node
-        };
-        node
+        }
     }
 
     pub fn set_pos(&mut self, pos: Pos) {
@@ -162,7 +161,7 @@ impl Graph {
     }
 
     pub fn graph_response(&self) -> GraphResponse {
-        let nodes: Vec<_> = self.graph.node_weights().map(|x| x.clone()).collect();
+        let nodes: Vec<_> = self.graph.node_weights().cloned().collect();
         let edges: Vec<_> = self
             .graph
             .edge_references()
@@ -216,7 +215,7 @@ impl Graph {
     pub fn add_node(&mut self, node: Node) {
         let node_id = node.id.clone();
         let node_index = if let Some(node_index) = self.node_id_map.get_by_left(&node_id) {
-            node_index.clone()
+            *node_index
         } else {
             self.graph.add_node(node)
         };
@@ -240,15 +239,15 @@ impl Graph {
 
     pub fn get_node_mut(&mut self, node_id: &NodeId) -> Result<&mut Node> {
         let node_index = self.resolve_node_index(node_id)?;
-        Ok(self
+        self
             .graph
             .node_weight_mut(node_index)
-            .ok_or(Error::node_not_found(&node_id.0))?)
+            .ok_or(Error::node_not_found(&node_id.0))
     }
 
     pub fn node_neighbors(&self, node_id: &NodeId) -> Result<Vec<&Node>> {
         let node_index = self.resolve_node_index(node_id)?;
-        let neighbors: Result<Vec<_>> = self
+        self
             .graph
             .neighbors_undirected(node_index)
             .map(|node_index| {
@@ -256,16 +255,15 @@ impl Graph {
                     .node_weight(node_index)
                     .ok_or(Error::node_index_not_found(node_index.index()))
             })
-            .collect();
-        Ok(neighbors?)
+            .collect()
     }
 
     pub fn resolve_node_index(&self, node_id: &NodeId) -> Result<NodeIndex> {
-        Ok(self
+        Ok(*self
             .node_id_map
             .get_by_left(node_id)
             .ok_or(Error::node_not_found(&node_id.0))?
-            .clone())
+            )
     }
 
     pub fn resolve_node_id(&self, node_index: NodeIndex) -> Result<NodeId> {
@@ -278,11 +276,11 @@ impl Graph {
 
     #[allow(dead_code)]
     pub fn resolve_edge_index(&self, edge_id: EdgeId) -> Result<EdgeIndex> {
-        Ok(self
+        Ok(*self
             .edge_id_map
             .get_by_left(&edge_id)
             .ok_or(Error::edge_not_found(&edge_id.0))?
-            .clone())
+            )
     }
 
     #[allow(dead_code)]
@@ -310,7 +308,7 @@ impl Graph {
     }
 
     pub fn parse_graphviz(&mut self, data: &str) -> Result<(), Error> {
-        let ast = graphviz_parser::DotGraph::from_str(&data)?;
+        let ast = graphviz_parser::DotGraph::from_str(data)?;
         if let graphviz_parser::DotGraph::Directed(graph) = ast {
             use graphviz_parser::ast_nodes::Statement;
             use graphviz_parser::ast_nodes::{EdgeLHS, EdgeRHS};

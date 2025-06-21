@@ -10,6 +10,7 @@ use std::net::SocketAddr;
 use crate::graph::{EdgeId, GraphResponse, Node, NodeId};
 use crate::graph_data::GraphDataType;
 
+#[allow(clippy::enum_variant_names)]
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Graph data error: {source}")]
@@ -126,10 +127,9 @@ async fn post_graphviz(data: Data<GraphDataType>, body: String) -> actix_web::Re
     let mut data = data.lock().await;
     data.reset_layout();
     match data.graph.parse_graphviz(&body) {
-        Ok(()) => Ok(format!("")),
+        Ok(()) => Ok(String::new()),
         Err(error) => Err(actix_web::error::ErrorBadRequest(format!(
-            "Parse error: {:?}",
-            error
+            "Parse error: {error:?}",
         ))),
     }
 }
@@ -157,7 +157,7 @@ pub async fn run_server(listen_addr: SocketAddr, data: web::Data<GraphDataType>)
                 }
             }
         } else {
-            println!("Started server on http://{}", addr);
+            println!("Started server on http://{addr}");
         }
     }
     Ok(server.run().await?)
