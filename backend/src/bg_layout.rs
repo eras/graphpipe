@@ -63,6 +63,8 @@ impl BgControl {
     }
 
     pub fn updates(&self) -> broadcast::Receiver<Update> {
+        // TODO: it would be better to always provide the current state first, so the
+        // client can only subscribe to SSE and get all the data
         match self.updates_tx.upgrade() {
             Some(updates_tx) => updates_tx.subscribe(),
             None => todo!(),
