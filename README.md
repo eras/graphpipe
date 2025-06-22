@@ -19,9 +19,11 @@ in the graph. (Deletion not yet supported.)
 ## Compiling
 
 ```
-cargo build
-(cd frontend && npm install && npm run build)
+npm install && npm run build && cargo build
 ```
+
+You may want to use `--features embed-assets` to embed the HTTP data
+files inside the binary. In this case it is important to run npm first.
 
 ## Running
 
