@@ -19,7 +19,7 @@ in the graph. (Deletion not yet supported.)
 ## Compiling
 
 ```
-npm install && npm run build && cargo build
+npm install && cargo build
 ```
 
 You may want to use `--features embed-assets` to embed the HTTP data
