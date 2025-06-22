@@ -118,6 +118,7 @@ jobs:
 
           # Copy the Rust binary into the root of the package directory
           # Ensure 'graphpipe' is the correct binary name in target/release/
+          strip target/release/graphpipe
           cp target/release/graphpipe graphpipe-${{ github.ref_name }}/
 
           tar cvaf graphpipe-${{ github.ref_name }}-linux-amd64.tar.xz graphpipe-${{ github.ref_name }}
