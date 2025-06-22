@@ -140,6 +140,7 @@ pub struct Graph {
     edge_id_map: BiMap<EdgeId, EdgeIndex>,
     id_counter: usize,
     creation_time: SystemTime,
+    change_serial: usize, // increase on every addition/removal of node/edge
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
@@ -157,7 +158,12 @@ impl Graph {
             edge_id_map: BiMap::new(),
             id_counter: 0usize,
             creation_time: SystemTime::now(),
+            change_serial: 0usize,
         }
+    }
+
+    pub fn get_change_serial(&self) -> usize {
+        self.change_serial
     }
 
     pub fn graph_response(&self) -> GraphResponse {
@@ -231,6 +237,7 @@ impl Graph {
     }
 
     pub fn add_node(&mut self, node: Node) {
+        self.change_serial += 1;
         let node_id = node.id.clone();
         let node_index = if let Some(node_index) = self.node_id_map.get_by_left(&node_id) {
             *node_index
@@ -307,6 +314,7 @@ impl Graph {
     }
 
     pub fn add_edge(&mut self, a: NodeId, b: NodeId, edge_id: Option<EdgeId>) -> Result<()> {
+        self.change_serial += 1;
         let edge_id = edge_id.unwrap_or_else(|| self.new_edge_id());
         let edge = Edge {
             id: edge_id.clone(),

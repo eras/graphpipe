@@ -39,6 +39,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub struct BgLayout {
     graph_data: GraphDataType,
     exit_requested: Arc<AtomicBool>,
+    layout_finished_serial: Option<usize>,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
@@ -78,6 +79,7 @@ impl BgLayout {
         BgLayout {
             graph_data,
             exit_requested,
+            layout_finished_serial: None,
         }
     }
 
@@ -96,12 +98,20 @@ impl BgLayout {
     async fn do_layout(self: &mut BgLayout) -> Result<bool, Error> {
         let mut data = self.graph_data.lock().await;
         if data.is_empty() {
+            self.layout_finished_serial = Some(data.graph.get_change_serial());
             Ok(true)
         } else {
-            let layout = data.update_layout()?;
-            let (nodes_edges, is_finished) = layout.step();
-            Layout::apply(&nodes_edges, &mut data.graph)?;
-            Ok(is_finished)
+            if Some(data.graph.get_change_serial()) != self.layout_finished_serial {
+                let layout = data.update_layout()?;
+                let (nodes_edges, is_finished) = layout.step();
+                Layout::apply(&nodes_edges, &mut data.graph)?;
+                if is_finished {
+                    self.layout_finished_serial = Some(data.graph.get_change_serial());
+                }
+                Ok(is_finished)
+            } else {
+                Ok(true)
+            }
         }
     }
 
