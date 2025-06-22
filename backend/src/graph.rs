@@ -239,16 +239,14 @@ impl Graph {
 
     pub fn get_node_mut(&mut self, node_id: &NodeId) -> Result<&mut Node> {
         let node_index = self.resolve_node_index(node_id)?;
-        self
-            .graph
+        self.graph
             .node_weight_mut(node_index)
             .ok_or(Error::node_not_found(&node_id.0))
     }
 
     pub fn node_neighbors(&self, node_id: &NodeId) -> Result<Vec<&Node>> {
         let node_index = self.resolve_node_index(node_id)?;
-        self
-            .graph
+        self.graph
             .neighbors_undirected(node_index)
             .map(|node_index| {
                 self.graph
@@ -262,8 +260,7 @@ impl Graph {
         Ok(*self
             .node_id_map
             .get_by_left(node_id)
-            .ok_or(Error::node_not_found(&node_id.0))?
-            )
+            .ok_or(Error::node_not_found(&node_id.0))?)
     }
 
     pub fn resolve_node_id(&self, node_index: NodeIndex) -> Result<NodeId> {
@@ -279,8 +276,7 @@ impl Graph {
         Ok(*self
             .edge_id_map
             .get_by_left(&edge_id)
-            .ok_or(Error::edge_not_found(&edge_id.0))?
-            )
+            .ok_or(Error::edge_not_found(&edge_id.0))?)
     }
 
     #[allow(dead_code)]
@@ -337,7 +333,7 @@ impl Graph {
                         };
                         self.ensure_node(&lhs_id);
                         self.ensure_node(&rhs_id);
-                        self.add_edge(lhs_id, rhs_id, Some (edge_id)).unwrap();
+                        self.add_edge(lhs_id, rhs_id, Some(edge_id)).unwrap();
                     }
                     _ => {
                         // Ignore others
