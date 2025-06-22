@@ -25,6 +25,6 @@ cargo build
 
 ## Running
 
-- `cargo run`
+- `cargo run -- --listen 8080` or `./graphpipe --listen 8080`
 - Open your browser at http://localhost:8080
 - `echo 'digraph g { a -> b; }' | curl -d @- localhost:8080/graph/graphviz`
