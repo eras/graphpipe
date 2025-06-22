@@ -93,7 +93,7 @@ impl Layout {
         Ok(node)
     }
 
-    pub fn step(&mut self) -> NodesEdges {
+    pub fn step(&mut self) -> (NodesEdges, bool) {
         self.sim.tick(1usize);
 
         let positions = self.sim.positions();
@@ -103,10 +103,14 @@ impl Layout {
             ..node.clone()
         });
 
-        NodesEdges {
+        let is_finished = self.sim.is_finished();
+
+        let nodes_edges = NodesEdges {
             nodes: nodes.collect(),
             edges: self.edges.clone(),
-        }
+        };
+
+        (nodes_edges, is_finished)
     }
 
     pub fn apply(nodes_edges: &NodesEdges, graph: &mut graph::Graph) -> Result<(), Error> {

@@ -91,13 +91,16 @@ impl BgLayout {
         }
     }
 
-    async fn do_layout(self: &mut BgLayout) -> Result<(), Error> {
+    async fn do_layout(self: &mut BgLayout) -> Result<bool, Error> {
         let mut data = self.graph_data.lock().await;
-
-        let layout = data.update_layout()?;
-        let nodes_edges = layout.step();
-        Layout::apply(&nodes_edges, &mut data.graph)?;
-        Ok(())
+        if data.is_empty() {
+            Ok(true)
+        } else {
+            let layout = data.update_layout()?;
+            let (nodes_edges, is_finished) = layout.step();
+            Layout::apply(&nodes_edges, &mut data.graph)?;
+            Ok(is_finished)
+        }
     }
 
     async fn send_update(
@@ -113,12 +116,16 @@ impl BgLayout {
     }
 
     async fn run(mut self: BgLayout, updates_tx: broadcast::Sender<Update>) {
+        let mut was_finished = false;
         while !self.exit_requested.load(Relaxed) {
-            let _ = self.do_layout().await;
+            let is_finished = self.do_layout().await.expect("Expected layout to succeed");
             tokio::time::sleep(Duration::from_millis(100)).await;
 
             // SendError can be ignored: it is a common case that there are no recipients
-            let _ = self.send_update(&updates_tx).await;
+            if !was_finished || !is_finished {
+                let _ = self.send_update(&updates_tx).await;
+            }
+            was_finished = is_finished;
         }
     }
 }

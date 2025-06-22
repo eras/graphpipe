@@ -34,6 +34,10 @@ impl GraphData {
         self.layout = None;
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.graph.graph.node_count() == 0
+    }
+
     #[allow(clippy::result_large_err)]
     pub fn update_layout(&mut self) -> Result<&mut Layout, Error> {
         if self.layout.is_none() {
