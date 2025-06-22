@@ -125,7 +125,7 @@ async fn add(
     Ok(web::Json(None::<String>))
 }
 
-#[actix_web::post("/graph/graphviz")]
+#[actix_web::post("/graphviz")]
 async fn post_graphviz(data: Data<GraphDataType>, body: String) -> actix_web::Result<String> {
     let mut data = data.lock().await;
     data.reset_layout();
