@@ -39,6 +39,7 @@ impl Layout {
             .collect();
         let nodes = nodes?;
         let sim = SimulationBuilder::default()
+            .with_alpha_min(0.5)
             .build(nodes.iter().map(|node| node.layout_node()))
             .add_force(
                 "link",
