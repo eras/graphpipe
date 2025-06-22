@@ -61,7 +61,6 @@ impl BgLayout {
         let exit_requested = self.exit_requested.clone();
         let graph_data = self.graph_data.clone();
         let _join = tokio::spawn(self.run());
-        eprintln!("started");
         Control {
             graph_data,
             exit_requested,
