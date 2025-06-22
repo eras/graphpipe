@@ -14,7 +14,7 @@ fn main() {
     // // Change current directory to the frontend directory
     // assert!(env::set_current_dir(&frontend_dir).is_ok());
 
-    eprintln!("Running `npm run build` in {:?}", frontend_dir);
+    eprintln!("Running `npm run build` in {frontend_dir:?}");
 
     // TODO: it's unclean that the `npm run build` assets are copied into the backend/assets directory
     // Instead, the OUT_DIR variable should be used. So probably `npm run build` should not copy anything

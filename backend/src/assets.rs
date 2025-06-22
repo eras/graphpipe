@@ -25,7 +25,7 @@ async fn embedded_assets_handler(
 }
 
 pub fn assets(path_prefix: &str, index_file_name: &str) -> Scope {
-    let mut scope = web::scope(&path_prefix);
+    let mut scope = web::scope(path_prefix);
 
     #[cfg(not(feature = "embed-assets"))]
     {

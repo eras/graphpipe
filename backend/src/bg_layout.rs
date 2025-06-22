@@ -37,11 +37,15 @@ pub struct BgLayout {
     exit_requested: Arc<AtomicBool>,
 }
 
+// TODO: This is for future use.. ?
+#[allow(dead_code)]
 pub struct Control {
     graph_data: GraphDataType,
     exit_requested: Arc<AtomicBool>,
 }
 
+// TODO: This is for future use.. ?
+#[allow(dead_code)]
 impl Control {
     pub fn exit(self) {
         self.exit_requested.store(true, Relaxed);
