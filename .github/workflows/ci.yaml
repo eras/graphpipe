@@ -71,6 +71,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # --- Frontend Build ---
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Or your desired Node.js version (e.g., '18', '20', 'lts/*')
+          cache: 'npm'       # Caches npm dependencies
+          cache-dependency-path: package-lock.json # Point to the lock file in your frontend dir
+
+      - name: Install Frontend dependencies
+        working-directory: ./frontend # All subsequent commands in this step run from 'frontend'
+        run: npm ci # 'npm ci' is recommended for CI for deterministic installs
+
+      - name: Build Frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      # --- Backend Build ---
+
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -90,23 +108,7 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Build release binaries
-        run: cargo build --release --verbose
-
-      # --- Frontend Build ---
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20' # Or your desired Node.js version (e.g., '18', '20', 'lts/*')
-          cache: 'npm'       # Caches npm dependencies
-          cache-dependency-path: package-lock.json # Point to the lock file in your frontend dir
-
-      - name: Install Frontend dependencies
-        working-directory: ./frontend # All subsequent commands in this step run from 'frontend'
-        run: npm ci # 'npm ci' is recommended for CI for deterministic installs
-
-      - name: Build Frontend
-        working-directory: ./frontend
-        run: npm run build
+        run: cargo build --features embed-assets --release --verbose
 
       - name: Prepare combined backend release package
         run: |
@@ -118,9 +120,6 @@ jobs:
           # Copy the Rust binary into the root of the package directory
           # Ensure 'graphpipe' is the correct binary name in target/release/
           cp target/release/graphpipe graphpipe-${{ github.ref_name }}/
-
-          mkdir graphpipe-${{ github.ref_name }}/backend
-          cp -R backend/assets graphpipe-${{ github.ref_name }}/backend/assets
 
           tar cvaf graphpipe-${{ github.ref_name }}-linux-amd64.tar.xz graphpipe-${{ github.ref_name }}
 
