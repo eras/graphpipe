@@ -7,8 +7,11 @@ use serde::{Deserialize, Serialize};
 use std::backtrace::Backtrace;
 use std::net::SocketAddr;
 
-use crate::graph::{EdgeId, GraphResponse, Node, NodeId};
 use crate::graph_data::GraphDataType;
+use crate::{
+    assets,
+    graph::{EdgeId, GraphResponse, Node, NodeId},
+};
 
 #[allow(clippy::enum_variant_names)]
 #[derive(thiserror::Error, Debug)]
@@ -143,7 +146,7 @@ pub async fn run_server(listen_addr: SocketAddr, data: web::Data<GraphDataType>)
             .service(list)
             .service(add)
             .service(post_graphviz)
-            .service(actix_files::Files::new("/", "./backend/assets").index_file("index.html"))
+            .service(assets::assets("", "index.html"))
     })
     .bind(listen_addr)?;
     for addr in server.addrs() {
