@@ -4,7 +4,7 @@ use petgraph::visit::EdgeRef;
 use petgraph::Graph as PetGraph;
 use serde::{Deserialize, Serialize};
 use std::backtrace::Backtrace;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr as _;
 use std::time::SystemTime;
 
@@ -161,10 +161,28 @@ impl Graph {
     }
 
     pub fn graph_response(&self) -> GraphResponse {
-        let nodes: Vec<_> = self.graph.node_weights().cloned().collect();
+        // Graph response filters out nodes without position. This simplifies the client side a bit.
+        let filter_unpositioned = true;
+        let nodes: Vec<_> = self
+            .graph
+            .node_weights()
+            .filter(|&node| !filter_unpositioned || node.pos.is_some())
+            .cloned()
+            .collect();
+        let node_ids: HashSet<NodeIndex> = nodes
+            .iter()
+            .map(|node| {
+                self.resolve_node_index(&node.id)
+                    .expect("Missing node index")
+            })
+            .collect();
         let edges: Vec<_> = self
             .graph
             .edge_references()
+            .filter(|edge| {
+                !filter_unpositioned
+                    || (node_ids.contains(&edge.source()) && node_ids.contains(&edge.target()))
+            })
             .map(|edge| {
                 (
                     self.resolve_node_id(edge.source())
