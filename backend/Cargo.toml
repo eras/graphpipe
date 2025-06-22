@@ -8,6 +8,7 @@ license = "MIT"
 actix-files = "0.6.6"
 actix-web = "4"
 actix-web-rust-embed-responder = { version = "2.2.3", optional = true }
+actix-web-lab = "0.24.1"
 anyhow = "1.0.98"
 bimap = "0.6.3"
 clap = { version = "4.5.40", features = ["derive"] }
@@ -27,6 +28,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 thiserror = "2.0.12"
 tokio = { version = "1.45.1", features = ["full"] }
+tokio-stream = { version = "0.1.17", features = ["sync"] }
 tracing = "0.1.41"
 
 [features]

@@ -28,12 +28,19 @@ interface GraphData {
     creation_time: number;
 }
 
+interface SSEData {
+    graph: GraphData;
+}
+
 const GRAPH_ENDPOINT: string = "/graph";
-const POLL_INTERVAL_MS: number = 100;
+const RETRY_INTERVAL_MS: number = 2000;
+const STREAM_ENDPOINT: string = "/stream";
 
 const margin = { top: 20, right: 20, bottom: 20, left: 20 };
 const width: number = 800 - margin.left - margin.right; // SVG width
 const height: number = 600 - margin.top - margin.bottom; // SVG height
+
+let eventSource: EventSource | null = null;
 
 // Create the SVG container
 const svg = select("#graph-container")
@@ -176,7 +183,7 @@ function updateGraph(graphData: GraphData): void {
 /**
  * Fetches graph data from the endpoint and renders it.
  */
-async function fetchDataAndRender(): Promise<void> {
+async function fetchDataAndRender(): Promise<boolean> {
     try {
         const response: Response = await fetch(GRAPH_ENDPOINT);
         if (!response.ok) {
@@ -187,15 +194,39 @@ async function fetchDataAndRender(): Promise<void> {
             lastCreationTime = data.creation_time;
         } else if (data.creation_time !== lastCreationTime) {
             window.location.reload();
-            return;
+            return true;
         }
         updateGraph(data);
+        return true;
     } catch (error: any) {
         // Use 'any' or more specific error types if known
         console.error("Error fetching graph data:", error);
+        return false;
     }
 }
 
-// Initial fetch and then poll
-fetchDataAndRender(); // Fetch immediately on load
-setInterval(fetchDataAndRender, POLL_INTERVAL_MS);
+async function subscribeToStream(): Promise<void> {
+    eventSource = new EventSource(STREAM_ENDPOINT);
+    eventSource.onmessage = (event: MessageEvent) => {
+        const data: SSEData = JSON.parse(event.data);
+        updateGraph(data.graph);
+    };
+
+    eventSource.onerror = (event: Event) => {
+        setup();
+    };
+}
+
+async function setup() {
+    // Initial fetch and then poll
+    if (await fetchDataAndRender()) {
+        // Subscribe to further updates
+        subscribeToStream();
+    } else {
+        console.log(
+            `Failed to connect to backend, trying again after ${RETRY_INTERVAL_MS} ms`
+        );
+        setTimeout(setup, RETRY_INTERVAL_MS);
+    }
+}
+setup();

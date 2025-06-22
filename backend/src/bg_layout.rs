@@ -3,7 +3,9 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::broadcast;
 
+use crate::graph::GraphResponse;
 use crate::graph_data::GraphDataType;
 use crate::layout::Layout;
 
@@ -32,23 +34,39 @@ pub enum Error {
     },
 }
 
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
 pub struct BgLayout {
     graph_data: GraphDataType,
     exit_requested: Arc<AtomicBool>,
 }
 
-// TODO: This is for future use.. ?
-#[allow(dead_code)]
-pub struct Control {
-    graph_data: GraphDataType,
-    exit_requested: Arc<AtomicBool>,
+#[derive(serde::Serialize, Debug, Clone)]
+pub struct Update {
+    graph: GraphResponse,
 }
 
 // TODO: This is for future use.. ?
+#[derive(Clone)]
 #[allow(dead_code)]
-impl Control {
+pub struct BgControl {
+    graph_data: GraphDataType,
+    exit_requested: Arc<AtomicBool>,
+    updates_tx: broadcast::WeakSender<Update>,
+}
+
+impl BgControl {
+    // TODO: This is for future use.. ?
+    #[allow(dead_code)]
     pub fn exit(self) {
         self.exit_requested.store(true, Relaxed);
+    }
+
+    pub fn updates(&self) -> broadcast::Receiver<Update> {
+        match self.updates_tx.upgrade() {
+            Some(updates_tx) => updates_tx.subscribe(),
+            None => todo!(),
+        }
     }
 }
 
@@ -61,13 +79,15 @@ impl BgLayout {
         }
     }
 
-    pub fn start(self: BgLayout) -> Control {
+    pub fn start(self: BgLayout) -> BgControl {
         let exit_requested = self.exit_requested.clone();
         let graph_data = self.graph_data.clone();
-        let _join = tokio::spawn(self.run());
-        Control {
+        let (updates_tx, _updates_rx) = broadcast::channel(10);
+        let _join = tokio::spawn(self.run(updates_tx.clone()));
+        BgControl {
             graph_data,
             exit_requested,
+            updates_tx: updates_tx.downgrade(),
         }
     }
 
@@ -80,10 +100,25 @@ impl BgLayout {
         Ok(())
     }
 
-    async fn run(mut self: BgLayout) {
+    async fn send_update(
+        self: &BgLayout,
+        updates_tx: &broadcast::Sender<Update>,
+    ) -> Result<(), tokio::sync::broadcast::error::SendError<Update>> {
+        let data = self.graph_data.lock().await;
+        let update = Update {
+            graph: data.graph.graph_response(),
+        };
+        let _subscriber_count = updates_tx.send(update)?;
+        Ok(())
+    }
+
+    async fn run(mut self: BgLayout, updates_tx: broadcast::Sender<Update>) {
         while !self.exit_requested.load(Relaxed) {
             let _ = self.do_layout().await;
             tokio::time::sleep(Duration::from_millis(100)).await;
+
+            // SendError can be ignored: it is a common case that there are no recipients
+            let _ = self.send_update(&updates_tx).await;
         }
     }
 }

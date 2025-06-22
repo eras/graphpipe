@@ -134,10 +134,10 @@ pub async fn main() -> Result<()> {
     let data = web::Data::new(graph_data.clone()); // Wrap in web::Data
 
     let bg_layout = BgLayout::new(graph_data.clone());
-    bg_layout.start();
+    let bg_control = bg_layout.start();
 
     let listen_addr = get_listen_address(args.listen)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e.to_string()))?;
 
-    Ok(server::run_server(listen_addr, data).await?)
+    Ok(server::run_server(listen_addr, data, web::Data::new(bg_control)).await?)
 }

@@ -1,17 +1,19 @@
 use actix_web::{
     middleware::Logger,
     web::{self, Data},
-    App, HttpServer,
+    App, HttpServer, Responder,
 };
 use serde::{Deserialize, Serialize};
-use std::backtrace::Backtrace;
-use std::net::SocketAddr;
+use std::{backtrace::Backtrace, time::Duration};
+use std::{convert::Infallible, net::SocketAddr};
+use tokio_stream::wrappers::BroadcastStream;
+use tokio_stream::StreamExt; // For stream combinators like .next()
 
-use crate::graph_data::GraphDataType;
 use crate::{
     assets,
     graph::{EdgeId, GraphResponse, Node, NodeId},
 };
+use crate::{bg_layout, graph_data::GraphDataType};
 
 #[allow(clippy::enum_variant_names)]
 #[derive(thiserror::Error, Debug)]
@@ -137,15 +139,36 @@ async fn post_graphviz(data: Data<GraphDataType>, body: String) -> actix_web::Re
     }
 }
 
+#[actix_web::get("/stream")]
+async fn from_channel(bg_control: web::Data<bg_layout::BgControl>) -> impl Responder {
+    let updates = BroadcastStream::new(bg_control.updates());
+
+    let events = updates.map(|update| {
+        let update = update.expect("woot, there should have been an update..");
+        let json_data = serde_json::to_string(&update).expect("Failed to encode Update to JSON");
+        Ok::<_, Infallible>(actix_web_lab::sse::Event::Data(
+            actix_web_lab::sse::Data::new(json_data),
+        ))
+    });
+
+    actix_web_lab::sse::Sse::from_stream(events).with_keep_alive(Duration::from_secs(5))
+}
+
 // Function to configure and run the Actix-web server
-pub async fn run_server(listen_addr: SocketAddr, data: web::Data<GraphDataType>) -> Result<()> {
+pub async fn run_server(
+    listen_addr: SocketAddr,
+    data: web::Data<GraphDataType>,
+    bg_control: web::Data<bg_layout::BgControl>,
+) -> Result<()> {
     let server = HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
             .app_data(data.clone())
+            .app_data(bg_control.clone())
             .service(list)
             .service(add)
             .service(post_graphviz)
+            .service(from_channel)
             .service(assets::assets("", "index.html"))
     })
     .bind(listen_addr)?;
