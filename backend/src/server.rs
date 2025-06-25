@@ -9,6 +9,8 @@ use std::{convert::Infallible, net::SocketAddr};
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt; // For stream combinators like .next()
 
+use std::sync::Arc;
+
 use crate::{
     assets,
     graph::{EdgeId, GraphResponse, Node, NodeId},
@@ -44,15 +46,9 @@ pub enum Error {
         #[from]
         source: std::io::Error,
     },
-
-    #[error("Layout error: {source}")]
-    LocalIpAddressError {
-        #[from]
-        source: local_ip_address::Error,
-    },
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 impl Error {
     pub fn backtrace(&self) -> Option<&Backtrace> {
@@ -60,7 +56,6 @@ impl Error {
             Error::GraphDataError { backtrace, .. } => Some(backtrace),
             Error::GraphError { backtrace, .. } => Some(backtrace),
             Error::LayoutError { backtrace, .. } => Some(backtrace),
-            Error::LocalIpAddressError { .. } => None,
             Error::IOError { .. } => None,
         }
     }
@@ -157,34 +152,24 @@ async fn from_channel(bg_control: web::Data<bg_layout::BgControl>) -> impl Respo
 // Function to configure and run the Actix-web server
 pub async fn run_server(
     listen_addr: SocketAddr,
-    data: web::Data<GraphDataType>,
-    bg_control: web::Data<bg_layout::BgControl>,
-) -> Result<()> {
-    let server = HttpServer::new(move || {
-        App::new()
-            .wrap(Logger::default())
-            .app_data(data.clone())
-            .app_data(bg_control.clone())
-            .service(list)
-            .service(add)
-            .service(post_graphviz)
-            .service(from_channel)
-            .service(assets::assets("", "index.html"))
-    })
-    .bind(listen_addr)?;
-    for addr in server.addrs() {
-        if addr.ip().is_unspecified() {
-            // Now, get all local network interfaces and print their IP addresses
-            let network_interfaces = local_ip_address::list_afinet_netifas()?;
-
-            for (name, ip) in network_interfaces.iter() {
-                if !ip.is_unspecified() {
-                    println!("Started server on http://{}:{} ({})", ip, addr.port(), name);
-                }
-            }
-        } else {
-            println!("Started server on http://{addr}");
-        }
-    }
-    Ok(server.run().await?)
+    data: GraphDataType,
+    bg_control: bg_layout::BgControl,
+    addresses: tokio::sync::oneshot::Sender<Vec<std::net::SocketAddr>>,
+) -> Result<actix_web::dev::Server, Error> {
+    let server = Arc::new(
+        HttpServer::new(move || {
+            App::new()
+                .wrap(Logger::default())
+                .app_data(web::Data::new(data.clone()))
+                .app_data(web::Data::new(bg_control.clone()))
+                .service(list)
+                .service(add)
+                .service(post_graphviz)
+                .service(from_channel)
+                .service(assets::assets("", "index.html"))
+        })
+        .bind(listen_addr)?,
+    );
+    let _ignore = addresses.send(server.addrs());
+    Ok(Arc::into_inner(server).unwrap().run())
 }

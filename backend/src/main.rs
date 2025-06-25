@@ -7,9 +7,9 @@ mod graph_data;
 mod layout;
 mod server;
 
-use actix_web::web;
 use clap::Parser;
 use env_logger::Env;
+use std::io::{Read, Write};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -34,6 +34,12 @@ pub enum Error {
         #[from]
         source: server::Error,
     },
+
+    #[error("Layout error: {source}")]
+    LocalIpAddressError {
+        #[from]
+        source: local_ip_address::Error,
+    },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -44,6 +50,9 @@ struct Args {
     /// Address and port to listen on, e.g., "127.0.0.1:8080", "hostname:8080", "8080", or "hostname:0", "0" for dynamic port
     #[clap(long)]
     listen: Option<String>,
+
+    #[arg(long, default_value_t = false)]
+    sh: bool,
 }
 
 // Function to handle the listening address logic
@@ -120,18 +129,17 @@ fn get_listen_address(listen_arg: Option<String>) -> Result<SocketAddr> {
 }
 
 #[allow(clippy::result_large_err)]
-#[tokio::main]
-pub async fn main() -> Result<()> {
-    env_logger::init_from_env(Env::default().default_filter_or("error"));
-
-    let args = Args::parse();
-
+async fn tokio_main(
+    args: Args,
+    verbose: bool,
+    mut for_sh_pipe: Option<std::io::PipeWriter>,
+) -> Result<()> {
     let graph = Graph::new();
     let graph_data = Arc::new(Mutex::new(GraphData {
         graph,
         layout: None,
     }));
-    let data = web::Data::new(graph_data.clone()); // Wrap in web::Data
+    let data = graph_data.clone();
 
     let bg_layout = BgLayout::new(graph_data.clone());
     let bg_control = bg_layout.start();
@@ -139,5 +147,97 @@ pub async fn main() -> Result<()> {
     let listen_addr = get_listen_address(args.listen)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e.to_string()))?;
 
-    Ok(server::run_server(listen_addr, data, web::Data::new(bg_control)).await?)
+    let (addresses_tx, addresses_rx) = tokio::sync::oneshot::channel();
+
+    let join = tokio::spawn(async move {
+        match server::run_server(listen_addr, data, bg_control, addresses_tx).await {
+            Ok(x) => x.await.map_err(|err| Error::from(err)),
+            Err(err) => Err(Error::from(err)),
+        }
+    });
+
+    let mut sent_for_sh = false;
+    let mut send_for_sh = |address: &str| {
+        if let Some(pipe_writer) = &mut for_sh_pipe {
+            if !sent_for_sh {
+                sent_for_sh = true;
+                pipe_writer
+                    .write_all(
+                        &format!(
+                            "echo Graphpipe is serving at {address}; export GRAPHPIPE={address}\n"
+                        )
+                        .into_bytes(),
+                    )
+                    .unwrap(); // We want to crash is this write fails
+            }
+        }
+    };
+
+    for addr in addresses_rx.await.expect("oneshot receive should succeed") {
+        if addr.ip().is_unspecified() {
+            // Now, get all local network interfaces and print their IP addresses
+            let network_interfaces = local_ip_address::list_afinet_netifas()?;
+
+            for (name, ip) in network_interfaces.iter() {
+                if !ip.is_unspecified() {
+                    if verbose {
+                        eprintln!("Started server on http://{}:{} ({})", ip, addr.port(), name);
+                    }
+                    send_for_sh(&format!("http://{}:{}", ip, addr.port()));
+                }
+            }
+        } else {
+            if verbose {
+                eprintln!("Started server on http://{addr}");
+            }
+            send_for_sh(&format!("http://{}", addr));
+        }
+    }
+
+    drop(for_sh_pipe);
+
+    // We want to crash if this join fails, or if there was an error in the start
+    // TODO: ..but we could maybe do it better somehow? E.g. try join before drop, to extract fast errors?
+    join.await.unwrap().unwrap();
+
+    Ok(())
+}
+
+#[allow(clippy::result_large_err)]
+fn main() -> Result<()> {
+    let args = Args::parse();
+
+    if !args.sh {
+        env_logger::init_from_env(Env::default().default_filter_or("error"));
+
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()?
+            .block_on(tokio_main(args, true, None))
+    } else {
+        let (mut for_sh_reader, for_sh_writer) = std::io::pipe()?;
+        match fork::daemon(true, true) {
+            Ok(fork::Fork::Child) => {
+                // SAFETY: let's hope we don't write to stdout or stderr
+                unsafe { libc::close(1) };
+                unsafe { libc::close(2) };
+                tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .build()?
+                    .block_on(tokio_main(args, false, Some(for_sh_writer)))
+            }
+            Ok(fork::Fork::Parent(pid)) => {
+                drop(for_sh_writer);
+                let mut for_sh = String::new();
+                for_sh_reader.read_to_string(&mut for_sh)?;
+                print!("{for_sh}");
+                println!("export GRAPHPIPE_PID={pid}; echo Graphpipe process id is {pid}");
+                Ok(())
+            }
+            Err(_) => {
+                eprintln!("Failed to fork");
+                Ok(()) // TODO
+            }
+        }
+    }
 }
